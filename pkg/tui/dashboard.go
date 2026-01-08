@@ -59,7 +59,7 @@ type DashboardModel struct {
 var (
 	dashTitleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FF79C6")).
+			Foreground(lipgloss.Color("#8daea5")).
 			Background(lipgloss.Color("#282A36")).
 			Padding(0, 2)
 

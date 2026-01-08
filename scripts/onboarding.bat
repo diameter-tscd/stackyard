@@ -44,8 +44,8 @@ set "P_PURPLE=[38;5;219m"
 set "B_PURPLE=[1;38;5;219m"
 set "P_CYAN=[38;5;117m"
 set "B_CYAN=[1;38;5;117m"
-set "P_GREEN=[38;5;46m"
-set "B_GREEN=[1;38;5;46m"
+set "P_GREEN=[38;5;108m"
+set "B_GREEN=[1;38;5;108m"
 set "P_YELLOW=[93m"
 set "B_YELLOW=[1;93m"
 set "P_RED=[91m"
@@ -179,9 +179,9 @@ if not exist "%CONFIG_FILE%" (
 copy "%CONFIG_FILE%" "%BACKUP_FILE%" >nul
 
 echo.
-echo    %P_PURPLE%(\_/)%RESET%
-echo    %P_PURPLE%(o.o)%RESET%   %B_PURPLE%stackyard Onboarding%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
-echo   %P_PURPLE%c(")(")%RESET%
+echo    %P_PURPLE% /\ %RESET%
+echo    %P_PURPLE%(  )%RESET%   %B_PURPLE%stackyard Onboarding%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
+echo   %P_PURPLE% \/ %RESET%
 echo %GRAY%----------------------------------------------------------------------%RESET%
 echo %B_CYAN%Welcome to the stackyard onboarding setup!%RESET%
 echo %GRAY%This script will help you configure your application.%RESET%

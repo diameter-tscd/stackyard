@@ -10,7 +10,7 @@ import (
 // Fancy ASCII art banners for enhanced visual appeal
 var (
 	// Gradient colors for text effects
-	GradientPink   = []string{"#FF79C6", "#FF6EB4", "#FF69B4", "#FF1493", "#C71585"}
+	GradientPink   = []string{"#8daea5", "#8daea5", "#8daea5", "#8daea5", "#8daea5"}
 	GradientPurple = []string{"#BD93F9", "#9B59B6", "#8E44AD", "#6C3483", "#5B2C6F"}
 	GradientCyan   = []string{"#8BE9FD", "#00D0FF", "#00B4D8", "#0096C7", "#0077B6"}
 	GradientGreen  = []string{"#50FA7B", "#00FF7F", "#00FA9A", "#00CED1", "#20B2AA"}

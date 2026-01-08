@@ -61,29 +61,29 @@ type LiveModel struct {
 var (
 	liveBannerStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#9dacffff"))
+			Foreground(lipgloss.Color("#8daea5"))
 
 	liveTitleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#ffffffff"))
 
 	liveInfoStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#9dacffff"))
+			Foreground(lipgloss.Color("#8daea5"))
 
 	liveStatusStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#95ffafff"))
+			Foreground(lipgloss.Color("#8daea5"))
 
 	liveDimStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#626262ff"))
 
 	liveLogBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#9dacffff")).
+			BorderForeground(lipgloss.Color("#8daea5")).
 			Padding(0, 1)
 
 	// Single cyan color for progress bar
-	liveProgressColor = "#9dacffff"
+	liveProgressColor = "#8daea5"
 )
 
 // Looping progress bar frames - slim style using dots
@@ -130,7 +130,7 @@ var loopingProgressFrames = []string{
 func NewLiveModel(cfg LiveConfig) *LiveModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#95ffafff"))
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#8daea5"))
 
 	// Initialize text input for filtering
 	ti := textinput.New()
@@ -139,7 +139,7 @@ func NewLiveModel(cfg LiveConfig) *LiveModel {
 	ti.Width = 30
 	// Make sure the text input is visible with a border
 	ti.Prompt = ""
-	ti.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B"))
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#8daea5"))
 
 	// Initialize reusable dialogs
 	exitDialog := template.NewExitConfirmationDialog()
@@ -426,7 +426,7 @@ func (m *LiveModel) View() string {
 
 	stickyLogsHeader := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#fa5b43ff")).
+		Foreground(lipgloss.Color("#8daea5")).
 		Render("◆ Live Logs")
 	mainContent.WriteString(stickyLogsHeader)
 	mainContent.WriteString("\n")

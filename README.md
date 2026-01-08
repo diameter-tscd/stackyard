@@ -1,4 +1,7 @@
-# stackyard
+
+<div align="center">
+  <img src=".assets/Stackyard_logo.PNG" alt="Stackyard"/>
+</div>
 
 Stackyard is a lightweight, production-ready application framework featuring modular architecture, comprehensive monitoring, real-time dashboards, and extensive infrastructure integrations. Built for scalability and ease of deployment.
 

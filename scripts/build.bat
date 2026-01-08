@@ -20,8 +20,8 @@ set "P_PURPLE=%ESC%[38;5;108m"
 set "B_PURPLE=%ESC%[1;38;5;108m"
 set "P_CYAN=%ESC%[38;5;117m"
 set "B_CYAN=%ESC%[1;38;5;117m"
-set "P_GREEN=%ESC%[38;5;46m"
-set "B_GREEN=%ESC%[1;38;5;46m"
+set "P_GREEN=%ESC%[38;5;108m"
+set "B_GREEN=%ESC%[1;38;5;108m"
 set "P_YELLOW=%ESC%[93m"
 set "B_YELLOW=%ESC%[1;93m"
 set "P_RED=%ESC%[91m"
@@ -34,9 +34,9 @@ set "B_WHITE=%ESC%[1;97m"
 cd /d "%~dp0.."
 
 echo.
-echo    %P_PURPLE%(\_/)%RESET%
-echo    %P_PURPLE%(o.o)%RESET%   %B_PURPLE%%APP_NAME% Builder%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
-echo   %P_PURPLE%c(")(")%RESET%
+echo    %P_PURPLE% /\ %RESET%
+echo    %P_PURPLE%(  )%RESET%   %B_PURPLE%%APP_NAME% Builder%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
+echo   %P_PURPLE% \/ %RESET%
 echo %GRAY%----------------------------------------------------------------------%RESET%
 
 REM 0. Check required tools

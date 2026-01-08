@@ -31,7 +31,7 @@ func (r *SimpleRenderer) PrintBanner(text string) {
 func (r *SimpleRenderer) PrintHeader(appName, version, env string) {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#FF79C6"))
+		Foreground(lipgloss.Color("#8daea5"))
 
 	subStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#8BE9FD")).

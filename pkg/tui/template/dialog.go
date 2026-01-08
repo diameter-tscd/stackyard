@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // DialogType represents the type of dialog
@@ -58,7 +59,8 @@ func NewDialog(config DialogConfig) *DialogModel {
 		if config.InputPrompt == "" {
 			ti.Placeholder = "Enter value..."
 		}
-		ti.CharLimit = 50
+		ti.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#8daea5"))
+		ti.CharLimit = 100
 		ti.Width = config.Width - 4 // Account for padding
 		ti.SetValue(config.DefaultValue)
 		ti.Focus()

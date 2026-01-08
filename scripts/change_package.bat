@@ -12,8 +12,8 @@ set "P_PURPLE=[38;5;108m"
 set "B_PURPLE=[1;38;5;108m"
 set "P_CYAN=[38;5;117m"
 set "B_CYAN=[1;38;5;117m"
-set "P_GREEN=[38;5;46m"
-set "B_GREEN=[1;38;5;46m"
+set "P_GREEN=[38;5;108m"
+set "B_GREEN=[1;38;5;108m"
 set "P_YELLOW=[93m"
 set "B_YELLOW=[1;93m"
 set "P_RED=[91m"
@@ -21,6 +21,13 @@ set "B_RED=[1;91m"
 set "GRAY=[38;5;242m"
 set "WHITE=[97m"
 set "B_WHITE=[1;97m"
+
+:: Script to change the Go module package name
+echo.
+echo    %P_PURPLE% /\ %RESET%
+echo    %P_PURPLE%(  )%RESET%   %B_PURPLE%Package Name Changer%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
+echo   %P_PURPLE% \/ %RESET%
+echo %GRAY%----------------------------------------------------------------------%RESET%
 
 REM Script to change the Go module package name
 REM Usage: change_package.bat <new_module_name>

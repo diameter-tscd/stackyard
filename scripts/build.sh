@@ -19,8 +19,8 @@ P_PURPLE="\033[38;5;108m"
 B_PURPLE="\033[1;38;5;108m"
 P_CYAN="\033[38;5;117m"
 B_CYAN="\033[1;38;5;117m"
-P_GREEN="\033[38;5;46m"
-B_GREEN="\033[1;38;5;46m"
+P_GREEN="\033[38;5;108m"
+B_GREEN="\033[1;38;5;108m"
 P_YELLOW="\033[93m"
 B_YELLOW="\033[1;93m"
 P_RED="\033[91m"
@@ -33,9 +33,9 @@ B_WHITE="\033[1;97m"
 cd "$(dirname "$0")/.." || exit 1
 
 echo ""
-echo -e "   ${P_PURPLE}(\_/)${RESET}"
-echo -e "   ${P_PURPLE}(o.o)${RESET}   ${B_PURPLE}${APP_NAME} Builder${RESET} ${GRAY}by${RESET} ${B_WHITE}diameter-tscd${RESET}"
-echo -e "  ${P_PURPLE}c(\")(\")${RESET}"
+echo -e "   ${P_PURPLE} /\ ${RESET}"
+echo -e "   ${P_PURPLE}(  )${RESET}   ${B_PURPLE}${APP_NAME} Builder${RESET} ${GRAY}by${RESET} ${B_WHITE}diameter-tscd${RESET}"
+echo -e "  ${P_PURPLE} \/ ${RESET}"
 echo -e "${GRAY}----------------------------------------------------------------------${RESET}"
 
 # 0. Check required tools

@@ -46,7 +46,7 @@ var bootFrames = []string{
 var (
 	bootBannerStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#dfc8ffff"))
+			Foreground(lipgloss.Color("#8daea5"))
 
 	bootSubStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#6272A4")).
@@ -351,7 +351,7 @@ func (m BootModel) renderBootServices() string {
 
 	header := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#8BE9FD")).
+		Foreground(lipgloss.Color("#f0ca8c")).
 		Render("◆ Boot Sequence")
 	lines = append(lines, header)
 	lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("#44475A")).Render(strings.Repeat("─", 45)))
@@ -368,7 +368,7 @@ func (m BootModel) renderBootServices() string {
 		case "loading":
 			icon = m.spinner.View()
 			status = r.Message
-			statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F1FA8C"))
+			statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#f0ca8c"))
 		case "success":
 			icon = bootSuccessIcon
 			status = r.Message
