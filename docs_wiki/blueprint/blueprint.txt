@@ -1,0 +1,1295 @@
+# PROJECT BLUEPRINT - COMPREHENSIVE ANALYSIS
+
+## 1. PROJECT OVERVIEW
+
+This project is a sophisticated Go-based boilerplate application with a modular architecture, comprehensive API structure, and advanced monitoring capabilities. The system is designed for extensibility, security, and production readiness.
+
+### Key Characteristics:
+- **Language**: Go (Golang)
+- **Framework**: Echo for HTTP services
+- **ORM**: GORM for database operations with auto-migration
+- **Architecture**: Modular, service-oriented with multi-tenant support
+- **UI**: Terminal User Interface (TUI) using Bubble Tea
+- **Monitoring**: Real-time system and service monitoring with fully offline web dashboard
+- **Database**: Multiple PostgreSQL connections with dynamic switching
+- **Security**: API obfuscation, comprehensive error handling, AES-256 encryption
+
+## 2. ARCHITECTURE & DESIGN
+
+### 2.1 System Architecture
+
+The project follows a clean, layered architecture with clear separation of concerns:
+
+```
+Client → Handler → Request Binding → Validation → Business Logic → Response
+```
+
+### 2.2 Package Organization
+
+- **cmd/**: Application entry points
+- **config/**: Configuration management
+- **internal/**: Core application logic (private)
+  - **middleware/**: HTTP middleware
+  - **monitoring/**: Monitoring system
+  - **server/**: HTTP server setup
+  - **services/**: Business services
+  - **modules/**: Individual service implementations
+- **pkg/**: Reusable packages (public)
+  - **request/**: Request handling and validation
+  - **response/**: Standardized API responses
+  - **tui/**: Terminal User Interface
+  - **infrastructure/**: External service integrations
+  - **logger/**: Logging utilities
+  - **utils/**: Utility functions
+    - **parameter.go**: Customizable parameter parsing system for command-line flags
+
+### 2.3 Request/Response Flow
+
+1. **Client Request** → HTTP Handler
+2. **Handler** → request.Bind (parse JSON)
+3. **Bind** → request.Validate (input validation)
+4. **Validate** → Business Logic (success) or Error (failure)
+5. **Logic** → response.Success or response.Error
+6. **Response** → JSON Response to Client
+
+## 3. API STRUCTURE
+
+### 3.1 Standardized Response Format
+
+All API responses follow a consistent structure:
+
+```json
+{
+  "success": true/false,
+  "message": "Optional message",
+  "data": {},
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Error message",
+    "details": {}
+  },
+  "meta": {
+    "page": 1,
+    "per_page": 10,
+    "total": 100,
+    "total_pages": 10
+  },
+  "timestamp": 1672531200
+}
+```
+
+### 3.2 Response Helper Functions
+
+**Success Responses:**
+- `response.Success(c, data, message)` - 200 OK
+- `response.SuccessWithMeta(c, data, meta, message)` - 200 OK with metadata
+- `response.Created(c, data, message)` - 201 Created
+- `response.NoContent(c)` - 204 No Content
+
+**Error Responses:**
+- `response.BadRequest(c, message, details)` - 400
+- `response.Unauthorized(c, message)` - 401
+- `response.Forbidden(c, message)` - 403
+- `response.NotFound(c, message)` - 404
+- `response.Conflict(c, message, details)` - 409
+- `response.ValidationError(c, message, details)` - 422
+- `response.InternalServerError(c, message)` - 500
+- `response.ServiceUnavailable(c, message)` - 503
+- `response.Error(c, statusCode, errorCode, message, details)` - Custom
+
+### 3.3 Request Validation
+
+**Built-in Validators:**
+- `required` - Field must not be empty
+- `email` - Valid email format
+- `min`, `max` - String length or numeric range
+- `gte`, `lte` - Greater/less than or equal
+- `oneof` - Value must be one of specified options
+
+**Custom Validators:**
+- `phone` - Valid phone number format
+- `username` - Alphanumeric username (3-20 chars)
+
+### 3.4 Pagination Support
+
+```go
+type PaginationRequest struct {
+    Page    int    `query:"page" json:"page"`
+    PerPage int    `query:"per_page" json:"per_page"`
+    Sort    string `query:"sort" json:"sort,omitempty"`
+    Order   string `query:"order" json:"order,omitempty"`
+}
+
+// Helper methods:
+pagination.GetPage()      // Returns page (default: 1)
+pagination.GetPerPage()   // Returns per_page (default: 10, max: 100)
+pagination.GetOffset()    // Calculates offset for DB queries
+```
+
+## 4. PERFORMANCE & SECURITY FEATURES
+
+### 4.1 GZIP Compression
+
+**Purpose:** Reduce response payload sizes and improve transfer speeds
+
+**Implementation:**
+- **Main API Server**: Automatic GZIP compression for all HTTP responses in `internal/server/server.go`
+- **Monitoring Web UI**: GZIP compression enabled for all responses in `internal/monitoring/server.go`
+- **Default Behavior**: GZIP is enabled by default for all endpoints without configuration
+- **Performance Impact**: Typically reduces response sizes by 60-80% for text-based content (JSON, HTML, CSS, JS)
+
+**Browser Support**: Modern browsers automatically decompress GZIP responses
+**Content Types**: Automatically compresses text-based responses, skips binary content
+
+## 5. SECURITY FEATURES
+
+### 4.1 API Obfuscation
+
+**Purpose:** Obscure JSON data in transit using Base64 encoding
+
+**Configuration:**
+```yaml
+monitoring:
+  obfuscate_api: true  # Enable/disable obfuscation
+```
+
+**Implementation:**
+- **Backend**: `internal/monitoring/middleware/obfuscator.go`
+  - Intercepts `/api/*` requests
+  - Excludes: `/api/logs`, `/api/cpu`, `/api/user/photos`
+  - Encodes JSON responses with Base64
+  - Sets `X-Obfuscated: true` header
+  - Updates `Content-Length` header
+
+- **Frontend**: `web/monitoring/assets/js/app.js`
+  - Uses `window.fetch` interceptor
+  - "Parse First, Decode Second" strategy
+  - Handles both obfuscated and standard responses
+  - Normalizes URL-safe characters and adds padding
+
+### 4.2 Error Handling
+
+**Custom HTTP Error Handler** in `internal/server/server.go`:
+
+- **404 Not Found**: Returns detailed JSON with path and method
+- **Other HTTP Errors**: Returns simplified JSON responses
+- **Internal Errors**: Returns 500 with correlation ID
+- **All errors logged** with context for debugging
+
+**Error Codes:**
+- 400: `BAD_REQUEST`
+- 401: `UNAUTHORIZED`
+- 403: `FORBIDDEN`
+- 404: `ENDPOINT_NOT_FOUND` / `NOT_FOUND`
+- 405: `HTTP_ERROR`
+- 409: `CONFLICT`
+- 422: `VALIDATION_ERROR`
+- 500: `INTERNAL_ERROR`
+- 503: `SERVICE_UNAVAILABLE`
+
+## 5. SERVICE ARCHITECTURE
+
+### 5.1 Service Interface
+
+All services implement the `Service` interface:
+
+```go
+type Service interface {
+    Name() string                      // Display name
+    RegisterRoutes(g *echo.Group)      // Register HTTP routes
+    Enabled() bool                     // Service active status
+    Endpoints() []string               // List of endpoints
+}
+```
+
+### 5.2 Service Implementation
+
+**Basic Service Example:**
+```go
+type OrdersService struct {
+    enabled bool
+}
+
+func NewOrdersService(enabled bool) *OrdersService {
+    return &OrdersService{enabled: enabled}
+}
+
+func (s *OrdersService) Name() string { return "Orders Service" }
+func (s *OrdersService) Enabled() bool { return s.enabled }
+func (s *OrdersService) Endpoints() []string { return []string{"/orders", "/orders/:id"} }
+
+func (s *OrdersService) RegisterRoutes(g *echo.Group) {
+    sub := g.Group("/orders")
+    sub.GET("", s.listOrders)
+    sub.GET("/:id", s.getOrder)
+    sub.POST("", s.createOrder)
+}
+```
+
+**Service with Dependencies:**
+```go
+type InventoryService struct {
+    db      *infrastructure.PostgresManager
+    redis   *infrastructure.RedisManager
+    enabled bool
+}
+
+func NewInventoryService(
+    db *infrastructure.PostgresManager,
+    redis *infrastructure.RedisManager,
+    enabled bool,
+) *InventoryService {
+    return &InventoryService{
+        db:      db,
+        redis:   redis,
+        enabled: enabled,
+    }
+}
+```
+
+### 5.3 Service Registration
+
+Services are registered in `internal/server/server.go`:
+
+```go
+registry.Register(modules.NewServiceA(s.config.Services.IsEnabled("service_a")))
+registry.Register(modules.NewOrdersService(s.config.Services.IsEnabled("orders")))
+registry.Register(modules.NewServiceE(s.config.Services.IsEnabled("service_e")))
+```
+
+### 5.4 Service Configuration
+
+```yaml
+services:
+  service_a: true
+  service_b: false
+  orders: true
+  inventory: true
+```
+
+## 6. TERMINAL USER INTERFACE (TUI)
+
+### 6.1 Overview
+
+The TUI provides visual feedback during boot and real-time monitoring using Bubble Tea framework.
+
+**Technologies:**
+- Bubble Tea: TUI framework
+- Lipgloss: Styling and layout
+- Bubbles: Pre-built components
+
+### 6.2 Boot Sequence (`pkg/tui/boot.go`)
+
+**Features:**
+- Phased execution (Starting → Initializing → Complete/Countdown)
+- Visual feedback with spinners and progress bars
+- Service queue with color-coded status
+- Interactive controls (skip countdown, quit)
+
+**Phases:**
+1. **Starting**: Intro animation
+2. **Initializing**: Service initialization with real-time feedback
+3. **Complete/Countdown**: Success message with optional countdown
+
+### 6.3 Live Logs (`pkg/tui/live.go`)
+
+**Features:**
+- Real-time log display with full scrolling support
+- Interactive log filtering with modal dialog
+- Auto-scroll control with manual toggle
+- Log management with clear functionality
+- Thread-safe log operations
+- Sticky header and footer with navigation controls
+
+**Layout:**
+- **Sticky Header**: App name, version, status, and logs section header
+- **Scrollable Content**: Log entries with smooth scrolling
+- **Sticky Footer**: Filter status, scroll position, auto-scroll status, and controls
+- **Modal Dialog**: Centered filter input on black background when active
+
+**Controls:**
+- **Arrow Keys**: Scroll up/down through logs
+- **Page Up/Down**: Page through logs
+- **Home/End**: Jump to top/bottom
+- **/**: Open filter dialog
+- **F1**: Toggle auto-scroll on/off
+- **F2**: Clear all logs
+- **q/Esc**: Exit application
+
+### 6.4 Service Architecture Showcase
+
+The application demonstrates different service implementation patterns through specialized services:
+
+#### Service G (`internal/services/modules/service_g.go`) - MongoDB Multi-Tenant Service
+**Database-focused service** providing comprehensive MongoDB operations:
+- **Multi-tenant support**: Operations across isolated tenant databases
+- **Full CRUD operations**: Create, read, update, delete for products
+- **Advanced search**: Complex queries with filtering and pagination
+- **Analytics**: Aggregation pipelines for tenant-specific insights
+- **API Endpoints**: `/api/v1/products/{tenant}/*` - Tenant-scoped operations
+
+#### Service H (`internal/services/modules/service_h.go`) - Clean Event Streaming Demo
+**Simple, user-friendly implementation** using the broadcast utility:
+- **Clean and simple**: Only 150 lines of code using `pkg/utils/broadcast.go`
+- **Easy to understand**: Demonstrates how easy event streaming can be
+- **Broadcasting made easy**: Shows the power of reusable utilities
+- **Educational value**: Perfect example of clean architecture
+
+#### Service I (`internal/services/modules/service_i.go`) - Grafana Integration Service
+**Monitoring and visualization service** providing comprehensive Grafana API integration:
+- **Dashboard Management**: Create, update, retrieve, and delete Grafana dashboards
+- **Data Source Configuration**: Set up Prometheus, InfluxDB, and other data sources
+- **Annotation Support**: Add timeline annotations for events and deployments
+- **Health Monitoring**: Real-time Grafana instance status and connectivity
+- **API Endpoints**: `/api/v1/grafana/*` - Complete Grafana API integration
+
+#### Broadcast Utility (`pkg/utils/broadcast.go`) - Reusable Infrastructure
+**Extracted broadcasting component** for maximum reusability:
+
+```go
+// Simple integration for any service
+broadcaster := utils.NewEventBroadcaster()
+client := broadcaster.Subscribe("my-stream")
+broadcaster.Broadcast("my-stream", "event", "message", data)
+```
+
+**Utility Benefits:**
+- **Clean code**: Services focus on business logic, not infrastructure
+- **Easy integration**: Just import and use
+- **Consistent API**: All services using broadcast have same interface
+- **Thread-safe operations** with proper synchronization
+
+#### Service Implementation Patterns
+
+**Simple Utility Pattern (Service H)**
+```go
+// Clean and simple implementation
+type ServiceH struct {
+    broadcaster *utils.EventBroadcaster  // Just use the utility!
+    streams     map[string]*SimpleStreamGenerator
+}
+
+// Pros: Clean, maintainable, easy to understand
+// Cons: Minimal - just use the utility
+```
+
+**Infrastructure Integration Pattern (Service I)**
+```go
+// Infrastructure-focused service
+type ServiceI struct {
+    grafanaManager *infrastructure.GrafanaManager  // External service integration
+    enabled        bool
+    logger         *logger.Logger
+}
+
+// Pros: Full API integration, async operations, comprehensive error handling
+// Cons: More complex implementation, external dependencies
+```
+
+#### API Endpoints
+
+| Service | Purpose | API Prefix | Implementation |
+|---------|---------|------------|----------------|
+| **Service G** | MongoDB multi-tenant | `/products/{tenant}/` | Database operations |
+| **Service H** | Event streaming | `/events/` | Clean utility usage |
+| **Service I** | Grafana integration | `/grafana/` | External API integration |
+
+#### MongoDB Multi-Tenant Operations (Service G)
+- `GET /api/v1/products/{tenant}` - List tenant products
+- `POST /api/v1/products/{tenant}` - Create product in tenant
+- `GET /api/v1/products/{tenant}/{id}` - Get specific product
+- `PUT /api/v1/products/{tenant}/{id}` - Update product
+- `DELETE /api/v1/products/{tenant}/{id}` - Delete product
+- `GET /api/v1/products/{tenant}/search` - Advanced search
+- `GET /api/v1/products/{tenant}/analytics` - Analytics dashboard
+
+#### Event Streaming Operations (Service H)
+- `GET /api/v1/events/stream/{stream_id}` - SSE subscription
+- `POST /api/v1/events/broadcast` - Event broadcasting
+- `GET /api/v1/events/streams` - Stream information
+- `POST /api/v1/events/stream/{id}/start|stop` - Simple stream management
+
+### 6.4 Reusable Dialog System (`pkg/tui/template/dialog.go`)
+
+**Features:**
+- **Template-based Dialogs**: Reusable dialog components moved to `pkg/tui/template/`
+- **Dialog Types**: Confirmation dialogs and input dialogs
+- **Easy Integration**: Simple API for Bubble Tea models
+- **Customizable**: Configurable width, titles, content, and styling
+- **Helper Functions**: Pre-built common dialogs (exit confirmation, filter input)
+- **State Management**: Proper active/inactive state handling
+
+### 6.5 Enhanced Live Logs (`pkg/tui/live.go`)
+
+**Advanced Features:**
+- **Unlimited Log Storage**: Removed 1000 log limit for unlimited storage
+- **Default Auto-scroll**: Auto-scroll enabled by default on startup
+- **Clean Footer**: Removed scroll count for cleaner interface
+- **Reusable Dialogs**: Uses template-based dialog system
+- **Thread-safe Operations**: All log operations properly synchronized
+- **Real-time Filtering**: Press "/" for modal log filtering
+- **Scroll Management**: Full keyboard navigation (arrows, page up/down, home/end)
+
+### 6.6 Styling System (`pkg/tui/styles.go`)
+
+**Color Palette (Dracula-inspired):**
+- Primary: Pink (#FF79C6), Purple (#BD93F9), Cyan (#8BE9FD)
+- Status: Green (#50FA7B), Yellow (#F1FA8C), Red (#FF5555)
+- UI Elements: Dark Grey (#6272A4)
+
+**Animations:**
+- Wave animation (boot screen)
+- Pulse effects (color cycling)
+
+## 7. ASYNC INFRASTRUCTURE SYSTEM
+
+### 7.1 Overview
+
+The application implements a comprehensive async infrastructure system that ensures all database operations, caching, message queuing, and file operations run asynchronously to avoid blocking the main application thread. This implementation uses Go's goroutines, channels, and worker pools to provide non-blocking operations while maintaining thread safety.
+
+### 7.2 Simplified Service Registration
+
+The service registration system has been completely simplified to make adding new services straightforward:
+
+#### How to Add a New Service (3 Simple Steps):
+
+1. **Create your service file** in `internal/services/modules/`:
+```go
+type OrdersService struct {
+    enabled bool
+}
+
+func NewOrdersService(enabled bool) *OrdersService {
+    return &OrdersService{enabled: enabled}
+}
+
+func (s *OrdersService) Name() string { return "Orders Service" }
+func (s *OrdersService) Enabled() bool { return s.enabled }
+func (s *OrdersService) Endpoints() []string { return []string{"/orders"} }
+
+func (s *OrdersService) RegisterRoutes(g *echo.Group) {
+    sub := g.Group("/orders")
+    sub.GET("", s.listOrders)
+    sub.POST("", s.createOrder)
+}
+```
+
+2. **Add to config.yaml**:
+```yaml
+services:
+  orders: true
+```
+
+3. **Add to `internal/services/register.go`** (that's it!):
+```go
+{
+    Name: "orders",
+    Constructor: func() interface{ Service } {
+        return modules.NewOrdersService(sr.config.Services.IsEnabled("orders"))
+    },
+},
+```
+
+#### Unified Service Configuration System
+
+The application now uses a **unified service configuration system** that eliminates code duplication between TUI boot sequences and console logging. This system provides a single source of truth for all infrastructure service configurations.
+
+**Key Components:**
+- **`getServiceConfigs()` function**: Returns unified list of service configurations
+- **Single data structure**: Used by both TUI and console modes
+- **DRY principle**: No more duplicated service lists across the codebase
+
+**Implementation:**
+```go
+// Unified service configuration
+type ServiceConfig struct {
+    Name    string
+    Enabled bool
+}
+
+// Single source of truth for all services
+func getServiceConfigs(cfg *config.Config) []ServiceConfig {
+    return []ServiceConfig{
+        {Name: "Grafana", Enabled: cfg.Grafana.Enabled},
+        {Name: "MinIO", Enabled: cfg.Monitoring.MinIO.Enabled},
+        {Name: "Redis Cache", Enabled: cfg.Redis.Enabled},
+        {Name: "Kafka Messaging", Enabled: cfg.Kafka.Enabled},
+        {Name: "PostgreSQL", Enabled: cfg.Postgres.Enabled},
+        {Name: "MongoDB", Enabled: cfg.Mongo.Enabled},
+        {Name: "Cron Scheduler", Enabled: cfg.Cron.Enabled},
+    }
+}
+```
+
+**Benefits:**
+- **Maintainability**: Single place to update service names and configurations
+- **Consistency**: TUI and console modes use identical service lists
+- **Type Safety**: Structured `ServiceConfig` type prevents errors
+- **Future-Proof**: Easy to add new services in one location
+
+### 7.2 Core Components
+
+#### AsyncResult Types
+Generic `AsyncResult[T]` types handle asynchronous operations:
+```go
+type AsyncResult[T any] struct {
+    Value T
+    Error error
+    Done  chan struct{}
+}
+```
+
+#### Worker Pools
+Each infrastructure component includes a worker pool for managing concurrent operations:
+```go
+type WorkerPool struct {
+    workers  int
+    jobQueue chan func()
+    stopChan chan struct{}
+    stopped  chan struct{}
+}
+```
+
+#### Batch Operations
+Support for batching multiple operations with `BatchAsyncResult[T]` types.
+
+### 7.3 Infrastructure Managers
+
+All infrastructure components (Redis, Kafka, MinIO, PostgreSQL, MongoDB, Cron) now support async operations:
+
+#### Redis Manager
+- `SetAsync()`, `GetAsync()`, `DeleteAsync()`
+- `SetBatchAsync()`, `GetBatchAsync()`
+- Worker pool with 10 workers
+
+#### Kafka Manager
+- `PublishAsync()`, `PublishWithKeyAsync()`
+- `PublishBatchAsync()`, `ConsumeAsync()`
+- Worker pool with 5 workers
+
+#### MinIO Manager
+- `UploadFileAsync()`, `GetObjectAsync()`, `DeleteObjectAsync()`
+- `UploadBatchAsync()`, `ListObjectsAsync()`
+- Worker pool with 8 workers
+
+#### PostgreSQL Manager
+- `QueryAsync()`, `ExecAsync()`, `InsertAsync()`, `UpdateAsync()`, `DeleteAsync()`
+- GORM async operations: `GORMCreateAsync()`, `GORMFindAsync()`, `GORMUpdateAsync()`, `GORMDeleteAsync()`
+- Worker pool with 15 workers
+
+#### MongoDB Manager
+- `InsertOneAsync()`, `FindAsync()`, `UpdateOneAsync()`, `DeleteOneAsync()`
+- `InsertBatchAsync()`, `UpdateBatchAsync()`
+- Worker pool with 12 workers
+
+#### Cron Manager
+- `AddAsyncJob()`, `RunJobNow()`
+- Jobs execute in worker pool
+- Worker pool with 5 workers
+
+### 7.4 Usage Patterns
+
+#### Synchronous Usage (Wait for Result)
+```go
+result := redisManager.GetAsync(ctx, "key")
+value, err := result.Wait()
+```
+
+#### Asynchronous Usage (Fire and Forget)
+```go
+result := dbManager.GORMCreateAsync(ctx, &user)
+// Continue with other work
+// Check result later if needed
+```
+
+#### Timeout Handling
+```go
+result := kafkaManager.PublishAsync(ctx, "topic", message)
+value, err := result.WaitWithTimeout(30 * time.Second)
+```
+
+#### Batch Operations
+```go
+keys := []string{"key1", "key2", "key3"}
+result := redisManager.GetBatchAsync(ctx, keys)
+values, errors := result.WaitAll()
+```
+
+### 7.5 Performance Benefits
+
+- **Non-blocking Operations**: HTTP handlers return immediately while operations run in background
+- **Concurrent Processing**: Multiple operations run simultaneously
+- **Resource Efficiency**: Better utilization of system resources
+- **Scalability**: Batch operations and connection management
+
+### 7.6 Error Handling
+
+Async operations include comprehensive error handling:
+- Panic recovery in goroutines
+- Context cancellation support
+- Timeout handling
+- Batch operation error aggregation
+
+### 7.7 Configuration
+
+Worker pool sizes are configurable:
+```yaml
+infrastructure:
+  redis:
+    workers: 10
+  kafka:
+    workers: 5
+  minio:
+    workers: 8
+  postgres:
+    workers: 15
+  mongodb:
+    workers: 12
+  cron:
+    workers: 5
+```
+
+### 7.8 Graceful Shutdown
+
+The application implements **graceful shutdown** that properly disconnects all infrastructure components when receiving SIGTERM or SIGINT signals. This ensures clean resource cleanup and prevents data corruption.
+
+#### Signal Handling
+The application catches SIGTERM/SIGINT signals and performs orderly shutdown:
+```go
+sigChan := make(chan os.Signal, 1)
+signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+<-sigChan
+err := server.Shutdown(context.Background(), logger)
+```
+
+#### Shutdown Order
+Components are shut down in reverse order to ensure dependencies are handled correctly:
+1. **Cron Manager** - Stop scheduled jobs first
+2. **MongoDB Connections** - Close document database connections
+3. **PostgreSQL Connections** - Close relational database connections
+4. **Kafka Manager** - Stop message producers/consumers
+5. **Redis Manager** - Close cache connections last
+
+#### Benefits
+- **Data Integrity**: Prevents partial writes and corruption
+- **Resource Cleanup**: Ensures all connections are properly closed
+- **Clean Termination**: No hanging processes or zombie goroutines
+- **Kubernetes Compatibility**: Works with container orchestration systems
+
+## 7. BUILD AND DEPLOYMENT SYSTEM
+
+### 7.1 Build Scripts
+
+The project includes comprehensive build scripts for automated compilation, backup management, and deployment across multiple platforms.
+
+**Features:**
+- **Cross-Platform Support**: Separate scripts for Unix/Linux/macOS (`scripts/build.sh`) and Windows (`scripts/build.bat`)
+- **Automatic Backup**: Creates timestamped backups of previous builds before deployment
+- **Archive Compression**: Compresses backups into ZIP files for efficient storage
+- **Process Management**: Automatically stops running application instances
+- **Asset Management**: Copies configuration files, databases, and web assets
+- **Clean Builds**: Optimized Go binary compilation
+- **Pure CMD Implementation**: Windows script uses only built-in CMD commands (no PowerShell dependency)
+
+**Build Process:**
+1. **Tool Installation**: Automatically checks and installs required tools (`goversioninfo`, `garble`)
+2. **User Choice**: Interactive prompt to enable/disable code obfuscation with `garble`
+3. **Timestamp Generation**: Creates `YYYYMMDD_HHMMSS` format timestamps
+4. **Process Management**: Stops running application instances using `pgrep`/`pkill` (Unix) or `tasklist`/`taskkill` (Windows)
+5. **Backup Creation**: Moves old binaries, configs, databases, and web assets to timestamped directories
+6. **Archive Compression**: Compresses backup folders using `zip` (Unix) or `tar` (Windows)
+7. **Build Execution**: Compiles Go application with `go build` or `garble build` based on user choice
+8. **Asset Copying**: Copies required files to build directory
+
+**Enhanced Features:**
+- **Code Obfuscation**: Optional `garble` build for production security
+- **Automatic Tool Management**: Installs required Go tools automatically
+- **Interactive Prompts**: User choice for obfuscation with 10-second timeout
+- **Cross-Platform Compatibility**: Native implementations for Unix/Linux/macOS and Windows
+
+**Unix/Linux/macOS Script (`scripts/build.sh`):**
+```bash
+# Prerequisites: Go compiler, zip utility, pgrep/pkill
+chmod +x scripts/build.sh
+./scripts/build.sh
+```
+
+**Windows Script (`scripts/build.bat`):**
+```cmd
+# Prerequisites: Go compiler, tar (built-in Windows 10/11)
+scripts/build.bat
+```
+
+**Configuration Variables:**
+- `DIST_DIR`: Build output directory (default: `dist`)
+- `APP_NAME`: Application binary name
+- `MAIN_PATH`: Path to main Go file (default: `./cmd/app/main.go`)
+
+**Backup Management:**
+- **Archive Format**: ZIP compression with directory preservation
+- **Naming Convention**: `YYYYMMDD_HHMMSS.zip`
+- **Storage Location**: `dist/backups/` directory
+- **Cleanup**: Automatic removal of uncompressed backup directories
+
+**CI/CD Integration:**
+- **GitHub Actions**: Automated build workflows
+- **Jenkins Pipeline**: Build and archive artifacts
+- **Artifact Management**: Upload build artifacts to repositories
+
+### 7.2 Docker Containerization
+
+The project includes comprehensive Docker containerization with multi-stage builds, automated build scripts, and container-optimized configuration.
+
+**Features:**
+- **Multi-Stage Builds**: Separate builder, test, development, and production stages
+- **Automated Build Scripts**: Cross-platform scripts for building Docker images
+- **Container-Optimized Configuration**: Automatic TUI disable and logging configuration for containers
+- **Multi-Platform Support**: Scripts for Unix/Linux/macOS and Windows environments
+- **Infrastructure Integration**: Docker Compose support for complete development stacks
+
+**Dockerfile Architecture:**
+- **Builder Stage**: Compiles Go application with UPX compression, optimized build flags (-w -s), and static linking
+- **Test Stage**: Runs test suite in isolated environment
+- **Development Stage**: Full Go toolchain with development tools, TUI disabled for containers
+- **Production Stage**: Minimal Alpine Linux image with compressed binary, TUI disabled for containers
+- **Ultra-Production Stage**: Distroless image for maximum security and minimal size
+
+**Build Scripts:**
+- **Unix/Linux/macOS**: `scripts/docker_build.sh`
+- **Windows**: `scripts/docker_build.bat`
+
+**Usage:**
+```bash
+# Build all stages (test, dev, prod)
+./scripts/docker_build.sh
+
+# Build with custom app name and image name
+./scripts/docker_build.sh "my-app" "myregistry/myapp"
+
+# Build specific target (prod for production only)
+./scripts/docker_build.sh "my-app" "myregistry/myapp" "prod"
+```
+
+**Container Configuration:**
+- **Environment Variables**: `APP_QUIET_STARTUP=false`, `APP_ENABLE_TUI=false`
+- **Automatic Overrides**: Disables TUI and quiet startup in containerized environments
+- **Port Exposure**: Main API (8080) and monitoring (9090) ports
+- **Volume Mounts**: Support for config file and source code mounting
+
+**Docker Compose Integration:**
+- **Development**: Full stack with Postgres, Redis, and app services
+- **Production**: Optimized production configuration
+- **Infrastructure**: Pre-configured database and cache services
+
+**CI/CD Integration:**
+- **GitHub Actions**: Automated Docker image building and testing
+- **Jenkins Pipeline**: Containerized build and deployment pipelines
+- **Registry Support**: Push to Docker registries and artifact repositories
+
+### 7.3 Package Name Change Scripts
+
+The project includes automated scripts for changing the Go module package name across the entire codebase. These scripts are essential when renaming or refactoring the project module.
+
+**Features:**
+- **Cross-Platform Support**: Separate scripts for Unix/Linux/macOS (`scripts/change_package.sh`) and Windows (`scripts/change_package.bat`)
+- **Automatic Import Updates**: Scans all `.go` files and updates import paths
+- **Module Declaration Update**: Updates the `module` directive in `go.mod`
+- **Backup Creation**: Shell script creates `.bak` backup files before modifications
+- **Pure CMD Implementation**: Windows script uses only built-in CMD commands (no PowerShell dependency)
+
+**Change Process:**
+1. **Module Validation**: Reads and validates current module name from `go.mod`
+2. **File Discovery**: Finds all `.go` files in the project recursively
+3. **Import Path Replacement**: Updates all import statements containing the old module name
+4. **Module Declaration Update**: Changes the module line in `go.mod`
+
+**Unix/Linux/macOS Script (`scripts/change_package.sh`):**
+```bash
+# Prerequisites: Bash, sed, find, awk, grep
+chmod +x scripts/change_package.sh
+./scripts/change_package.sh "github.com/new-org/new-project"
+```
+
+**Windows Script (`scripts/change_package.bat`):**
+```cmd
+# Prerequisites: Windows CMD (built-in)
+scripts\change_package.bat github.com/new-org/new-project
+```
+
+**Usage Examples:**
+```bash
+# Change to a new GitHub repository
+./scripts/change_package.sh "github.com/mycompany/myproject"
+
+# Change to a local module
+./scripts/change_package.sh "mycompany.com/internal/project"
+
+# Change to a generic module name
+./scripts/change_package.bat "example.com/my-app"
+```
+
+**Safety Features:**
+- **Validation**: Checks that the new module name is provided
+- **Backup Creation**: Creates `.bak` files (Unix/Linux/macOS only)
+- **Error Handling**: Stops execution on critical errors
+- **Dry Run Option**: Can be easily modified for preview-only mode
+
+**Important Notes:**
+- **Commit First**: Always commit changes before running the script
+- **Test After**: Run `go mod tidy` and test compilation after changes
+- **Backup Files**: Remove `.bak` files after verifying changes (Unix/Linux/macOS)
+- **IDE Restart**: May need to restart IDE/editor after module name changes
+
+### 7.2 Infrastructure Integration
+
+#### 7.2.1 Redis
+
+**Configuration:**
+```yaml
+redis:
+  enabled: true
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 0
+```
+
+**Usage:**
+```go
+ctx := context.Background()
+err := redis.Set(ctx, "my-key", "my-value", time.Minute*10)
+val, err := redis.Get(ctx, "my-key")
+err = redis.Delete(ctx, "my-key")
+```
+
+#### 7.2.2 MongoDB
+
+**Configuration (Multiple Connections):**
+```yaml
+mongo:
+  enabled: true
+  connections:
+    - name: "primary"
+      enabled: true
+      uri: "mongodb://localhost:27017"
+      database: "primary_db"
+
+    - name: "secondary"
+      enabled: true
+      uri: "mongodb://localhost:27018"
+      database: "secondary_db"
+```
+
+**Usage (Multiple Connections):**
+```go
+// Get specific connection
+if conn, exists := mongoManager.GetConnection("primary"); exists {
+    result, err := conn.InsertOne(ctx, "collection", document)
+}
+
+// Get all connections for multi-tenant operations
+allConnections := mongoManager.GetAllConnections()
+for tenant, db := range allConnections {
+    // Work with each tenant's database
+    cursor, err := db.Find(ctx, "collection", filter)
+}
+```
+
+**CRUD Operations:**
+```go
+// Insert operations
+result, err := mongoManager.InsertOne(ctx, "collection", document)
+result, err := mongoManager.InsertMany(ctx, "collection", documents)
+
+// Query operations
+cursor, err := mongoManager.Find(ctx, "collection", filter)
+singleResult := mongoManager.FindOne(ctx, "collection", filter)
+
+// Update operations
+result, err := mongoManager.UpdateOne(ctx, "collection", filter, update)
+result, err := mongoManager.UpdateMany(ctx, "collection", filter, update)
+
+// Delete operations
+result, err := mongoManager.DeleteOne(ctx, "collection", filter)
+result, err := mongoManager.DeleteMany(ctx, "collection", filter)
+```
+
+### 7.2 Postgres
+
+**Configuration (Multiple Connections):**
+```yaml
+postgres:
+  enabled: true
+  connections:
+    - name: "primary"
+      enabled: true
+      host: "localhost"
+      port: 5432
+      user: "postgres"
+      password: "Mypostgres01"
+      dbname: "primary_db"
+      sslmode: "disable"
+
+    - name: "secondary"
+      enabled: true
+      host: "localhost"
+      port: 5433
+      user: "postgres"
+      password: "Mypostgres01"
+      dbname: "secondary_db"
+      sslmode: "disable"
+```
+
+**Single Connection (Legacy):**
+```yaml
+postgres:
+  enabled: true
+  host: "localhost"
+  port: "5432"
+  user: "postgres"
+  password: "password"
+  dbname: "mydb"
+  sslmode: "disable"
+  max_open_conns: 10
+  max_idle_conns: 5
+```
+
+**Usage (GORM with Multiple Connections):**
+```go
+// Get specific connection
+if conn, exists := postgresManager.GetConnection("primary"); exists {
+    var users []User
+    result := conn.ORM.Where("active = ?", true).Find(&users)
+    if result.Error != nil {
+        // Handle error
+    }
+}
+
+// Get default connection
+if defaultConn, exists := postgresManager.GetDefaultConnection(); exists {
+    var orders []Order
+    defaultConn.ORM.Where("tenant_id = ?", tenantID).Find(&orders)
+}
+
+// Auto-migration for all connections
+for tenant, db := range postgresManager.GetAllConnections() {
+    if db.ORM != nil {
+        db.ORM.AutoMigrate(&User{}, &Order{}) // Migrate schemas
+    }
+}
+```
+
+**Raw SQL Usage:**
+```go
+var users []User
+err := db.DB.Select(&users, "SELECT * FROM users WHERE active = $1", true)
+```
+
+### 7.3 Kafka
+
+**Configuration:**
+```yaml
+kafka:
+  enabled: true
+  brokers: ["localhost:9092"]
+  topic: "my-topic"
+  group_id: "my-group"
+```
+
+**Usage:**
+```go
+err := kafka.Publish("notification-topic", []byte("Hello Kafka"))
+```
+
+### 7.4 MinIO (Object Storage)
+
+**Configuration:**
+```yaml
+monitoring:
+  minio:
+    enabled: true
+    endpoint: "localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    use_ssl: false
+    bucket: "my-bucket"
+    region: "us-east-1"
+```
+
+**Usage:**
+```go
+file, _ := fileHeader.Open()
+defer file.Close()
+
+info, err := storage.UploadFile(context.Background(), "avatars/user-1.jpg", file, fileHeader.Size, "image/jpeg")
+url := storage.GetFileUrl("avatars/user-1.jpg")
+```
+
+### 7.5 Cron Jobs
+
+**Configuration:**
+```yaml
+cron:
+  enabled: true
+  jobs:
+    "cleanup_logs": "0 0 * * *"   # Midnight
+    "health_check": "*/5 * * * *" # Every 5 minutes
+```
+
+**Usage:**
+```go
+id, err := cron.AddJob("database_backup", "0 3 * * *", func() {
+    fmt.Println("Performing database backup...")
+})
+```
+
+## 8. BEST PRACTICES
+
+### 8.1 API Development
+
+1. **Use response helpers** - Never manually construct responses
+2. **Validate all requests** - Use built-in and custom validators
+3. **Standardize error codes** - Make errors machine-readable
+4. **Include meaningful messages** - Help developers debug
+5. **Use pagination** - For all list endpoints
+6. **Return appropriate status codes** - Follow HTTP standards
+7. **Include timestamps** - All responses have Unix timestamps
+8. **Keep responses consistent** - Same structure across endpoints
+
+### 8.2 Service Development
+
+1. **Implement Service interface** - Name, RegisterRoutes, Enabled, Endpoints
+2. **Use dependency injection** - For infrastructure components
+3. **Register in server.go** - Use `IsEnabled()` for dynamic config
+4. **Add to config.yaml** - Under `services:` section
+5. **Handle errors gracefully** - Use response helpers
+6. **Validate inputs** - Use request.Bind and validation tags
+
+### 8.3 Configuration Management
+
+1. **Use config.yaml** - For all runtime configuration
+2. **Default to enabled** - Services enabled by default if not specified
+3. **Environment variables** - Can override config values
+4. **Validation** - Config values are validated at startup
+
+## 9. PROJECT STRUCTURE SUMMARY
+
+```
+stackyard/
+├── Dockerfile                  # Multi-stage Docker configuration
+├── cmd/
+│   └── app/
+│       └── main.go              # Application entry point
+├── config/
+│   ├── config.go               # Configuration management
+│   └── config.yaml             # Application configuration
+├── docs_wiki/                  # Documentation
+│   ├── API_OBFUSCATION.md
+│   ├── API_RESPONSE_STRUCTURE.md
+│   ├── ARCHITECTURE_DIAGRAMS.md
+│   ├── DOCKER_CONTAINERIZATION.md  # Docker setup guide
+│   ├── ERROR_HANDLING.md
+│   ├── HOME.md
+│   ├── INTEGRATION_GUIDE.md
+│   ├── REQUEST_RESPONSE_STRUCTURE.md
+│   ├── SERVICE_IMPLEMENTATION.md
+│   ├── TUI_IMPLEMENTATION.md
+│   └── blueprint/              # Blueprint files
+│       └── blueprint.txt       # This file
+├── internal/
+│   ├── middleware/             # HTTP middleware
+│   ├── monitoring/             # Monitoring system
+│   ├── server/                 # HTTP server
+│   └── services/               # Business services
+│       ├── services.go         # Service interface
+│       └── modules/            # Service implementations
+├── pkg/
+│   ├── request/                # Request handling
+│   ├── response/               # Response helpers
+│   ├── tui/                    # Terminal UI
+│   ├── infrastructure/         # External integrations
+│   ├── logger/                 # Logging
+│   └── utils/                  # Utility functions
+├── scripts/                    # Build and utility scripts
+│   ├── build.sh                # Go binary build (Unix/Linux/macOS)
+│   ├── build.bat               # Go binary build (Windows)
+│   ├── change_package.sh       # Package name change (Unix/Linux/macOS)
+│   ├── change_package.bat      # Package name change (Windows)
+│   ├── docker_build.sh         # Docker image build (Unix/Linux/macOS)
+│   └── docker_build.bat        # Docker image build (Windows)
+└── web/                       # Web assets
+    └── monitoring/            # Monitoring UI
+```
+
+## 10. KEY FEATURES SUMMARY
+
+### 10.1 Core Features
+
+- **Modular Architecture**: Services can be enabled/disabled via config
+- **Multi-Tenant Database Support**: Multiple PostgreSQL connections with dynamic switching
+- **ORM Integration**: GORM with auto-migration for database operations
+- **Standardized API**: Consistent request/response structure
+- **Comprehensive Validation**: Built-in and custom validators
+- **Advanced Error Handling**: Custom HTTP error handler
+- **API Obfuscation**: Base64 encoding for data privacy
+- **Real-time Monitoring**: System and service health dashboard with web interface
+- **Terminal UI**: Interactive boot sequence and dashboard
+- **Infrastructure Integrations**: Redis, Postgres, Kafka, MinIO, Grafana, Cron
+- **Customizable Parameter Parsing**: Dynamic flag system for command-line configuration
+
+### 10.2 Technical Highlights
+
+- **Echo Framework**: High-performance HTTP server
+- **Bubble Tea**: Modern TUI framework
+- **GORM**: ORM for database operations
+- **Validator**: Request validation library
+- **Gopsutil**: System monitoring library
+- **Clean Architecture**: Separation of concerns
+- **Dependency Injection**: For service components
+- **Configuration Management**: YAML-based with defaults
+
+### 10.3 Production Readiness
+
+- **Comprehensive Logging**: Structured logging with context
+- **Error Tracking**: Correlation IDs for debugging
+- **Health Monitoring**: Real-time system metrics
+- **Graceful Shutdown**: Proper resource cleanup
+- **Configuration Validation**: At startup
+- **Security Features**: API obfuscation, proper error handling
+- **Scalability**: Modular design for horizontal scaling
+
+## 11. GETTING STARTED
+
+### 11.1 Setup
+
+1. **Install Dependencies**:
+```bash
+go mod tidy
+```
+
+2. **Configure Services** in `config.yaml`:
+```yaml
+services:
+  service_a: true
+  service_b: false
+  # Add your services here
+```
+
+3. **Run Application**:
+```bash
+go run cmd/app/main.go
+```
+
+### 11.2 Development Workflow
+
+1. **Create New Service**:
+   - Implement `Service` interface in `internal/services/modules/`
+   - Register in `internal/server/server.go`
+   - Add to `config.yaml`
+
+2. **Add API Endpoints**:
+   - Use `request.Bind()` for input validation
+   - Use `response.Success()` or `response.Error()` helpers
+   - Follow standardized response format
+
+3. **Integrate Infrastructure**:
+   - Use dependency injection for Redis, Postgres, etc.
+   - Configure in `config.yaml`
+   - Use infrastructure managers from `pkg/infrastructure/`
+
+4. **Test and Monitor**:
+   - Use TUI dashboard for real-time monitoring
+   - Check logs for errors and debugging
+   - Verify API responses with Postman/curl
+
+## 12. CONCLUSION
+
+This project represents a sophisticated, production-ready Go boilerplate with comprehensive features for API development, service management, monitoring, and infrastructure integration. The modular architecture, standardized patterns, and extensive documentation make it an excellent foundation for building scalable, maintainable applications.
+
+The combination of:
+- **Clean architecture** with separation of concerns
+- **Multi-tenant database support** with dynamic connection switching
+- **ORM integration** using GORM with auto-migration capabilities
+- **Comprehensive API structure** with validation and error handling
+- **Advanced monitoring** with both TUI and web dashboards
+- **Security features** including API obfuscation and AES-256 encryption
+- **Infrastructure integrations** for Redis, multiple PostgreSQL databases, Kafka, MinIO, and Cron
+
+makes this boilerplate suitable for a wide range of applications from simple APIs to complex multi-tenant SaaS systems.
+
+## 13. LICENSING
+
+### 13.1 License Information
+
+This project is licensed under the **Apache License 2.0**, a permissive open-source license that allows for:
+
+- **Commercial Use**: Licensed works can be used for commercial purposes
+- **Modification**: Licensed works can be modified
+- **Distribution**: Licensed works can be distributed
+- **Patent Grant**: Includes an explicit patent license
+- **Private Use**: Licensed works can be used privately
+
+### 13.2 Copyright Notice
+
+```
+Copyright 2025 diameter-tscd
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+### 13.3 License File
+
+The complete license text is available in the `LICENSE` file at the root of the project repository.
+
+### 13.4 Attribution Requirements
+
+When using this project, proper attribution should be given according to the Apache License 2.0 terms. If you modify and distribute this software, you must:
+
+1. **Include License Text**: Include a copy of the Apache License 2.0
+2. **Preserve Copyright Notices**: Keep copyright notices in distributed files
+3. **Include Attribution**: If the work includes a NOTICE file, include the attribution notices
+4. **State Changes**: Clearly mark any modifications made to the original work
+
+### 13.5 Open Source Compliance
+
+This project complies with open-source licensing best practices:
+
+- **License Clarity**: Clear and unambiguous licensing terms
+- **No Copyleft**: Permissive license allows proprietary derivatives
+- **Global Compatibility**: Apache 2.0 is recognized worldwide
+- **Corporate Friendly**: Suitable for both individual and commercial use
+
+### 13.6 Third-Party Dependencies
+
+The project uses various third-party dependencies, each with their own licenses. Key dependencies include:
+
+- **Go Standard Library**: BSD-style license (automatically compliant)
+- **Echo Framework**: MIT License
+- **GORM**: MIT License
+- **Bubble Tea**: MIT License
+- **MongoDB Go Driver**: Apache License 2.0
+- **Redis Go Client**: Apache License 2.0
+
+All third-party dependencies are compatible with the Apache License 2.0.
+
+### 13.7 Contributing and Licensing
+
+When contributing to this project:
+
+1. **Contributor License Agreement**: Contributors must agree that their contributions are licensed under Apache License 2.0
+2. **Original Work**: Contributions must be original work or properly licensed
+3. **No Additional Restrictions**: Contributions cannot add additional licensing restrictions
+
+### 13.8 Commercial Support
+
+While the software is provided under Apache License 2.0, commercial support, consulting, and custom development services may be available through the project maintainer.
