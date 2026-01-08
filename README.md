@@ -2,15 +2,15 @@
 <div align="center">
   <img src=".assets/Stackyard_logo.PNG" alt="Stackyard"/>
 </div>
-
-Stackyard is a lightweight, production-ready application framework featuring modular architecture, comprehensive monitoring, real-time dashboards, and extensive infrastructure integrations. Built for scalability and ease of deployment.
-
 <div align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"/>
   <img src="https://img.shields.io/badge/go-1.21%2B-00ADD8.svg" alt="Go Version"/>
   <img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status"/>
   <img src="https://img.shields.io/badge/github-diameter--tscd/stackyard-181717.svg" alt="GitHub Repo"/>
 </div>
+<br>
+
+Stackyard is a lightweight, production-ready application framework featuring modular architecture, comprehensive monitoring, real-time dashboards, and extensive infrastructure integrations. Built for scalability and ease of deployment.
 
 ## Quick Start
 
@@ -111,4 +111,4 @@ Apache License Version 2.0: [LICENSE](LICENSE)
 
 ---
 
-**Built with ❤️ using Go, Echo, Alpine.js, Tailwind CSS**
+**Built with 🐸 using Go, Echo, Alpine.js, Tailwind CSS**
