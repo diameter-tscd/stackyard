@@ -157,7 +157,7 @@ cp config.yaml config.yaml.backup
 echo ""
 echo -e "   ${P_PURPLE} /\ ${RESET}"
 echo -e "   ${P_PURPLE}(  )${RESET}   ${B_PURPLE}stackyard Onboarding${RESET} ${GRAY}by${RESET} ${B_WHITE}diameter-tscd${RESET}"
-echo -e "  ${P_PURPLE} \/ ${RESET}"
+echo -e "   ${P_PURPLE} \/ ${RESET}"
 echo -e "${GRAY}----------------------------------------------------------------------${RESET}"
 echo -e "${B_CYAN}Welcome to the stackyard onboarding setup!${RESET}"
 echo -e "${GRAY}This script will help you configure your application.${RESET}"

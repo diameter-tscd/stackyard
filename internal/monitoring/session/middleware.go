@@ -7,7 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-const SessionCookieName = "gobp_session_id"
+const SessionCookieName = "Stackyard_session_id"
 
 // Middleware creates Echo middleware for session validation
 func Middleware(manager *Manager) echo.MiddlewareFunc {

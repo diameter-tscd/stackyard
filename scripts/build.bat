@@ -36,7 +36,7 @@ cd /d "%~dp0.."
 echo.
 echo    %P_PURPLE% /\ %RESET%
 echo    %P_PURPLE%(  )%RESET%   %B_PURPLE%%APP_NAME% Builder%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
-echo   %P_PURPLE% \/ %RESET%
+echo    %P_PURPLE% \/ %RESET%
 echo %GRAY%----------------------------------------------------------------------%RESET%
 
 REM 0. Check required tools

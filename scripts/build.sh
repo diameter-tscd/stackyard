@@ -35,7 +35,7 @@ cd "$(dirname "$0")/.." || exit 1
 echo ""
 echo -e "   ${P_PURPLE} /\ ${RESET}"
 echo -e "   ${P_PURPLE}(  )${RESET}   ${B_PURPLE}${APP_NAME} Builder${RESET} ${GRAY}by${RESET} ${B_WHITE}diameter-tscd${RESET}"
-echo -e "  ${P_PURPLE} \/ ${RESET}"
+echo -e "   ${P_PURPLE} \/ ${RESET}"
 echo -e "${GRAY}----------------------------------------------------------------------${RESET}"
 
 # 0. Check required tools

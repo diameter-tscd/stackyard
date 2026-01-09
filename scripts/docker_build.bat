@@ -55,7 +55,7 @@ cd /d "%~dp0.."
 echo.
 echo    %P_PURPLE% /\ %RESET%
 echo    %P_PURPLE%(  )%RESET%   %B_PURPLE%Docker Builder%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
-echo   %P_PURPLE% \/ %RESET%
+echo    %P_PURPLE% \/ %RESET%
 echo %GRAY%----------------------------------------------------------------------%RESET%
 echo    %B_CYAN%App Name:%RESET% %B_WHITE%%APP_NAME%%RESET%
 echo    %B_CYAN%Image Name:%RESET% %B_WHITE%%IMAGE_NAME%%RESET%

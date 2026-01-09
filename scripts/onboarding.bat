@@ -1,38 +1,11 @@
 @echo off
 cls
 
-:: Check if build script exists
-if not exist "scripts\build.bat" (
-    echo %B_RED%Error: build.bat not found in scripts\ directory%RESET%
-    pause
-    exit /b 1
-)
-
-:: Check if Go is installed
-go version >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo %B_RED%Error: Go is not installed or not in PATH%RESET%
-    echo %WHITE%Please install Go from https://golang.org/dl/%RESET%
-    pause
-    exit /b 1
-)
-
-:: Check Go version (minimum 1.24)
-for /f "tokens=3" %%i in ('go version') do set go_ver=%%i
-set go_ver=%go_ver:go=%
-for /f "tokens=1,2 delims=." %%a in ("%go_ver%") do (
-    set major=%%a
-    set minor=%%b
-)
-if %major% gtr 1 goto version_ok
-if %major% equ 1 if %minor% geq 24 goto version_ok
-echo %B_RED%Error: Go version %go_ver% is too old. Minimum required is 1.24%RESET%
-echo %WHITE%Please upgrade Go from https://golang.org/dl/%RESET%
-pause
-exit /b 1
-:version_ok
-
 setlocal EnableDelayedExpansion
+
+:: Robustly switch to project root (one level up from this script)
+cd /d "%~dp0.."
+
 set "CONFIG_FILE=config.yaml"
 set "BACKUP_FILE=config.yaml.backup"
 
@@ -54,45 +27,75 @@ set "GRAY=[38;5;242m"
 set "WHITE=[97m"
 set "B_WHITE=[1;97m"
 
+:: Check if build script exists
+if not exist "scripts\build.bat" (
+    echo Error: build.bat not found in scripts\ directory
+    pause
+    exit /b 1
+)
+
+:: Check if Go is installed
+go version >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo Error: Go is not installed or not in PATH
+    echo Please install Go from https://golang.org/dl/
+    pause
+    exit /b 1
+)
+
+:: Check Go version (minimum 1.24)
+for /f "tokens=3" %%i in ('go version') do set go_ver=%%i
+set go_ver=%go_ver:go=%
+for /f "tokens=1,2 delims=." %%a in ("%go_ver%") do (
+    set major=%%a
+    set minor=%%b
+)
+if %major% gtr 1 goto version_ok
+if %major% equ 1 if %minor% geq 24 goto version_ok
+echo Error: Go version %go_ver% is too old. Minimum required is 1.24
+echo Please install Go from https://golang.org/dl/
+pause
+exit /b 1
+:version_ok
+
 :: Function to read user input with default value
 :read_input
-setlocal
+setlocal EnableDelayedExpansion
 set "prompt=%~1"
 set "default=%~2"
 set "input="
 
-echo.
-echo %P_CYAN%%prompt%%RESET%
-if "%default%" NEQ "" echo %GRAY%Default: %default%%RESET%
-set /p "input=%B_WHITE%> %RESET%"
-if "%input%"=="" if "%default%" NEQ "" set "input=%default%"
-echo %input%
+echo !prompt!
+if "!default!" NEQ "" echo Default: !default!
+set /p "input=Enter value: "
+if "!input!"=="" if "!default!" NEQ "" set "input=!default!"
+endlocal & set "input=%input%"
 goto :eof
 
 :: Function to read yes/no with default
 :read_yes_no
-setlocal
+setlocal EnableDelayedExpansion
 set "prompt=%~1"
 set "default=%~2"
 set "input="
 
-echo.
-echo %P_CYAN%%prompt%%RESET%
-if "%default%"=="y" (
-    echo %GRAY%Default: Yes%RESET%
+echo !prompt!
+if "!default!"=="y" (
+    echo Default: Yes
 ) else (
-    echo %GRAY%Default: No%RESET%
+    echo Default: No
 )
-set /p "input=%B_WHITE%(y/n) > %RESET%"
-if "%input%"=="" set "input=%default%"
+set /p "input=Choice (y/n): "
+if "!input!"=="" set "input=!default!"
 
-if /i "%input%"=="y" (
+if /i "!input!"=="y" (
     echo true
-) else if /i "%input%"=="yes" (
+) else if /i "!input!"=="yes" (
     echo true
 ) else (
     echo false
 )
+endlocal
 goto :eof
 
 :: Function to update config value (simple implementation)
@@ -149,28 +152,28 @@ goto :eof
 :: Function to show warning
 :show_warning
 echo.
-echo %B_YELLOW%WARNING:%RESET% %B_WHITE%%~1%RESET%
+echo WARNING: %~1
 echo.
 goto :eof
 
 :: Function to show info
 :show_info
 echo.
-echo %B_CYAN%INFO:%RESET% %WHITE%%~1%RESET%
+echo INFO: %~1
 echo.
 goto :eof
 
 :: Function to show success
 :show_success
 echo.
-echo %B_GREEN%SUCCESS:%RESET% %WHITE%%~1%RESET%
+echo SUCCESS: %~1
 echo.
 goto :eof
 
 :: Check if config.yaml exists
 if not exist "%CONFIG_FILE%" (
-    echo %B_RED%Error: %CONFIG_FILE% not found in current directory%RESET%
-    echo %WHITE%Please run this script from the project root directory.%RESET%
+    echo Error: %CONFIG_FILE% not found in current directory
+    echo Please run this script from the project root directory.
     pause
     exit /b 1
 )
@@ -179,73 +182,63 @@ if not exist "%CONFIG_FILE%" (
 copy "%CONFIG_FILE%" "%BACKUP_FILE%" >nul
 
 echo.
-echo    %P_PURPLE% /\ %RESET%
-echo    %P_PURPLE%(  )%RESET%   %B_PURPLE%stackyard Onboarding%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
-echo   %P_PURPLE% \/ %RESET%
-echo %GRAY%----------------------------------------------------------------------%RESET%
-echo %B_CYAN%Welcome to the stackyard onboarding setup!%RESET%
-echo %GRAY%This script will help you configure your application.%RESET%
-echo %GRAY%----------------------------------------------------------------------%RESET%
+echo    /\ 
+echo   (  )   stackyard Onboarding by diameter-tscd
+echo    \/
+echo ------------------------------------------------------------------------------
+echo Welcome to the stackyard onboarding setup!
+echo This script will help you configure your application.
+echo ------------------------------------------------------------------------------
 
 :: Basic Application Configuration
-echo.
-echo %B_PURPLE%BASIC APPLICATION CONFIGURATION%RESET%
+echo BASIC APPLICATION CONFIGURATION
 
 call :read_input "Enter application name" "My Fancy Go App"
-set "APP_NAME=%errorlevel%"
+set "APP_NAME=%errorlevel%"%
 
 call :read_input "Enter application version" "1.0.0"
-set "APP_VERSION=%errorlevel%"
+set "APP_VERSION=%errorlevel%"%
 
 call :read_input "Enter server port" "8080"
-set "SERVER_PORT=%errorlevel%"
+set "SERVER_PORT=%errorlevel%"%
 
 call :read_input "Enter monitoring port" "9090"
-set "MONITORING_PORT=%errorlevel%"
+set "MONITORING_PORT=%errorlevel%"%
 
-:: Environment Settings
-echo.
-echo %B_PURPLE%ENVIRONMENT SETTINGS%RESET%
+echo ENVIRONMENT SETTINGS
 
 call :read_yes_no "Enable debug mode?" "y"
-set "DEBUG_MODE=%errorlevel%"
+set "DEBUG_MODE=%errorlevel%"%
 
 call :read_yes_no "Enable TUI (Terminal User Interface)?" "y"
-set "TUI_MODE=%errorlevel%"
+set "TUI_MODE=%errorlevel%"%
 
 call :read_yes_no "Quiet startup (suppress console logs)?" "n"
-set "QUIET_STARTUP=%errorlevel%"
+set "QUIET_STARTUP=%errorlevel%"%
 
-:: Service Configuration
-echo.
-echo %B_PURPLE%SERVICE CONFIGURATION%RESET%
+echo SERVICE CONFIGURATION
 
 call :read_yes_no "Enable monitoring dashboard?" "y"
-set "ENABLE_MONITORING=%errorlevel%"
+set "ENABLE_MONITORING=%errorlevel%"%
 
 call :read_yes_no "Enable API encryption?" "n"
-set "ENABLE_ENCRYPTION=%errorlevel%"
+set "ENABLE_ENCRYPTION=%errorlevel%"%
 
-:: Infrastructure Configuration
-echo.
-echo %B_PURPLE%INFRASTRUCTURE CONFIGURATION%RESET%
+echo INFRASTRUCTURE CONFIGURATION
 
 call :read_yes_no "Enable Redis?" "n"
-set "ENABLE_REDIS=%errorlevel%"
+set "ENABLE_REDIS=%errorlevel%"%
 
-echo.
 set /p "ENABLE_POSTGRES=Enable PostgreSQL? (single/multi/none) [single]: "
 if "%ENABLE_POSTGRES%"=="" set "ENABLE_POSTGRES=single"
 
 call :read_yes_no "Enable Kafka?" "n"
-set "ENABLE_KAFKA=%errorlevel%"
+set "ENABLE_KAFKA=%errorlevel%"%
 
 call :read_yes_no "Enable MinIO (Object Storage)?" "n"
-set "ENABLE_MINIO=%errorlevel%"
+set "ENABLE_MINIO=%errorlevel%"%
 
-:: Apply Configuration
-echo.
-echo %B_PURPLE%APPLYING CONFIGURATION%RESET%
+echo APPLYING CONFIGURATION
 
 :: Update basic config
 call :update_config "app.name" "%APP_NAME%"
@@ -278,13 +271,13 @@ call :show_success "Configuration updated successfully!"
 
 :: Security Warnings
 echo.
-echo %B_PURPLE%SECURITY WARNINGS%RESET%
+echo SECURITY WARNINGS
 
 call :show_warning "Default credentials are configured. You MUST change these before production use:"
-echo %B_RED%• PostgreSQL password: 'Mypostgres01'%RESET%
-echo %B_RED%• Monitoring password: 'admin'%RESET%
-echo %B_RED%• MinIO credentials: 'minioadmin/minioadmin'%RESET%
-echo %B_RED%• API secret key: 'super-secret-key'%RESET%
+echo • PostgreSQL password: 'Mypostgres01'
+echo • Monitoring password: 'admin'
+echo • MinIO credentials: 'minioadmin/minioadmin'
+echo • API secret key: 'super-secret-key'
 
 call :show_warning "API obfuscation is enabled. This adds security through obscurity but is not encryption."
 
@@ -294,7 +287,7 @@ if "%ENABLE_ENCRYPTION%"=="true" (
 
 :: Next Steps
 echo.
-echo %B_PURPLE%NEXT STEPS%RESET%
+echo NEXT STEPS
 
 call :show_info "1. Review and customize config.yaml with your specific settings"
 call :show_info "2. Update all default passwords and secrets"
@@ -305,17 +298,17 @@ call :show_info "6. Test the application with 'go run cmd\app\main.go'"
 
 :: Offer to run additional setup
 echo.
-echo %P_CYAN%Would you like to run additional setup commands?%RESET%
-echo %GRAY%This will run 'go mod tidy' and check for build issues.%RESET%
+echo Would you like to run additional setup commands?
+echo This will run 'go mod tidy' and check for build issues.
 call :read_yes_no "Run setup commands?" "y"
-set "RUN_SETUP=%errorlevel%"
+set "RUN_SETUP=%errorlevel%"%
 
 if "%RUN_SETUP%"=="true" (
     echo.
-    echo %B_PURPLE%RUNNING SETUP COMMANDS%RESET%
+    echo RUNNING SETUP COMMANDS
 
     echo.
-    echo %P_CYAN%Running 'go mod tidy'...%RESET%
+    echo Running 'go mod tidy'...
     go mod tidy
     if %ERRORLEVEL% EQU 0 (
         call :show_success "Dependencies updated successfully"
@@ -324,7 +317,7 @@ if "%RUN_SETUP%"=="true" (
     )
 
     echo.
-    echo %P_CYAN%Checking build...%RESET%
+    echo Checking build...
     go build -o temp_build.exe .\cmd\app\main.go
     if %ERRORLEVEL% EQU 0 (
         call :show_success "Build test successful"
@@ -337,14 +330,14 @@ if "%RUN_SETUP%"=="true" (
 )
 
 :: Final message
-echo %GRAY%======================================================================%RESET%
-echo  %B_PURPLE%ONBOARDING COMPLETE!%RESET% %P_GREEN%Your app is ready to go!%RESET%
-echo %GRAY%======================================================================%RESET%
+echo ======================================================================
+echo   ONBOARDING COMPLETE! Your app is ready to go!
+echo ======================================================================
 echo.
-echo %B_CYAN%Backup created:%RESET% %B_WHITE%%BACKUP_FILE%%RESET%
-echo %B_CYAN%Configuration:%RESET% %B_WHITE%%CONFIG_FILE%%RESET%
+echo Backup created: %BACKUP_FILE%
+echo Configuration: %CONFIG_FILE%
 echo.
-echo %B_GREEN%Happy coding!%RESET%
+echo Happy coding!
 echo.
 
 pause

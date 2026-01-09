@@ -244,8 +244,8 @@ monitoring:
   port: "9090"
   password: "admin"
   obfuscate_api: true
-  title: "GoBP Admin"
-  subtitle: "My Kisah Emuach ❤️"
+  title: "Stackyard Admin"
+  subtitle: "Dashboard Monitor"
   max_photo_size_mb: 2
   upload_dir: "web/monitoring/uploads"
 ```
@@ -256,7 +256,7 @@ monitoring:
 | `port` | string | Monitoring port | "9090" |
 | `password` | string | Monitoring password | "" |
 | `obfuscate_api` | boolean | Enable API obfuscation | false |
-| `title` | string | Monitoring dashboard title | "GoBP Admin" |
+| `title` | string | Monitoring dashboard title | "Stackyard Admin" |
 | `subtitle` | string | Monitoring dashboard subtitle | "" |
 | `max_photo_size_mb` | integer | Maximum photo upload size in MB | 2 |
 | `upload_dir` | string | Upload directory path | "web/monitoring/uploads" |
@@ -408,8 +408,8 @@ monitoring:
   port: "9090"
   password: "admin"
   obfuscate_api: true
-  title: "GoBP Admin"
-  subtitle: "My Kisah Emuach ❤️"
+  title: "Stackyard Admin"
+  subtitle: "Dashboard Monitor"
   max_photo_size_mb: 2
   upload_dir: "web/monitoring/uploads"
 

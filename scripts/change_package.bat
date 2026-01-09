@@ -26,7 +26,7 @@ set "B_WHITE=[1;97m"
 echo.
 echo    %P_PURPLE% /\ %RESET%
 echo    %P_PURPLE%(  )%RESET%   %B_PURPLE%Package Name Changer%RESET% %GRAY%by%RESET% %B_WHITE%diameter-tscd%RESET%
-echo   %P_PURPLE% \/ %RESET%
+echo    %P_PURPLE% \/ %RESET%
 echo %GRAY%----------------------------------------------------------------------%RESET%
 
 REM Script to change the Go module package name

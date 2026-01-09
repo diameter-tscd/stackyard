@@ -2,6 +2,11 @@
 <html lang="en">
 
 <head>
+    <link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicon/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicon/site.webmanifest" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -246,12 +251,8 @@
                 :class="sidebarCollapsed ? 'justify-center px-0' : ''">
                 <a class="flex items-center gap-2 font-semibold" href="#">
                     <div
-                        class="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-md bg-primary text-primary-foreground shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="h-3 w-3 sm:h-4 sm:w-4">
-                            <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-                        </svg>
+                        class="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center text-primary-foreground shrink-0">
+                        <img src="/assets/favicon/favicon.svg" alt="Stackyard" width="40" height="40" />
                     </div>
                     <div class="flex flex-col overflow-hidden transition-all duration-300" x-show="!sidebarCollapsed"
                         x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 w-0"
@@ -333,7 +334,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="h-4 w-4 text-green-500">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <path d="M22 11.08V12a10 10 0 1 1 5.93-9.14"></path>
                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
                         </svg>
                     </div>
@@ -404,7 +405,7 @@
                             class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground border border-input shadow-sm hover:bg-accent/50 overflow-hidden">
                             <template x-if="userSettings.photoPath">
                                 <img :src="'/api/user/photos/' + userSettings.photoPath" alt="Profile"
-                                    class="h-full w-full object-cover">
+                                    class="h-full w-full object-cover" loading="lazy">
                             </template>
                             <template x-if="!userSettings.photoPath">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none"
@@ -979,7 +980,9 @@
                             <div class="rounded-md border bg-card shadow-sm p-4">
                                 <div class="flex items-center gap-4">
                                     <div class="flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="text-primary">
                                             <path d="M2 12h20"></path>
                                             <path d="M12 2v20"></path>
                                             <path d="M20 20a1 1 0 1 0 2 0a1 1 0 1 0-2 0"></path>
@@ -1014,9 +1017,12 @@
                                                 <template x-for="conn in postgresConnections" :key="conn.name">
                                                     <div @click="changePostgresConnection(conn.name); open = false"
                                                         class="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-xs outline-none hover:bg-accent hover:text-accent-foreground">
-                                                        <span x-show="conn.name === selectedPostgresConnection" class="absolute right-2 text-xs">✓</span>
+                                                        <span x-show="conn.name === selectedPostgresConnection"
+                                                            class="absolute right-2 text-xs">✓</span>
                                                         <div class="flex items-center gap-2">
-                                                            <div class="w-2 h-2 rounded-full" :class="conn.status.connected ? 'bg-green-500' : 'bg-red-500'"></div>
+                                                            <div class="w-2 h-2 rounded-full"
+                                                                :class="conn.status.connected ? 'bg-green-500' : 'bg-red-500'">
+                                                            </div>
                                                             <span x-text="conn.name"></span>
                                                         </div>
                                                     </div>
@@ -1024,7 +1030,8 @@
                                             </div>
                                         </div>
 
-                                        <button @click="fetchPostgresConnections()" class="h-9 px-3 text-sm bg-secondary hover:bg-secondary/80 rounded-md transition-colors">
+                                        <button @click="fetchPostgresConnections()"
+                                            class="h-9 px-3 text-sm bg-secondary hover:bg-secondary/80 rounded-md transition-colors">
                                             Refresh
                                         </button>
                                     </div>
@@ -1265,8 +1272,12 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"
                                 stroke-linejoin="round" class="mx-auto mb-4 opacity-50">
-                                <path d="M17.6 9.5C17.6 14.1944 13.8 18 9.1 18C4.4 18 0.6 14.1944 0.6 9.5C0.6 4.80558 4.4 1 9.1 1C13.8 1 17.6 4.80558 17.6 9.5Z"></path>
-                                <path d="M12.1 9.5C12.1 11.9853 10 14 7.55 14C5.1 14 3 11.9853 3 9.5C3 7.01469 5.1 5 7.55 5C10 5 12.1 7.01469 12.1 9.5Z"></path>
+                                <path
+                                    d="M17.6 9.5C17.6 14.1944 13.8 18 9.1 18C4.4 18 0.6 14.1944 0.6 9.5C0.6 4.80558 4.4 1 9.1 1C13.8 1 17.6 4.80558 17.6 9.5Z">
+                                </path>
+                                <path
+                                    d="M12.1 9.5C12.1 11.9853 10 14 7.55 14C5.1 14 3 11.9853 3 9.5C3 7.01469 5.1 5 7.55 5C10 5 12.1 7.01469 12.1 9.5Z">
+                                </path>
                                 <path d="M7.55 9.5V14"></path>
                                 <path d="M7.55 5V9.5"></path>
                                 <path d="M9.1 1V18"></path>
@@ -1282,9 +1293,15 @@
                             <div class="rounded-md border bg-card shadow-sm p-4">
                                 <div class="flex items-center gap-4">
                                     <div class="flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
-                                            <path d="M17.6 9.5C17.6 14.1944 13.8 18 9.1 18C4.4 18 0.6 14.1944 0.6 9.5C0.6 4.80558 4.4 1 9.1 1C13.8 1 17.6 4.80558 17.6 9.5Z"></path>
-                                            <path d="M12.1 9.5C12.1 11.9853 10 14 7.55 14C5.1 14 3 11.9853 3 9.5C3 7.01469 5.1 5 7.55 5C10 5 12.1 7.01469 12.1 9.5Z"></path>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                                            <path
+                                                d="M17.6 9.5C17.6 14.1944 13.8 18 9.1 18C4.4 18 0.6 14.1944 0.6 9.5C0.6 4.80558 4.4 1 9.1 1C13.8 1 17.6 4.80558 17.6 9.5Z">
+                                            </path>
+                                            <path
+                                                d="M12.1 9.5C12.1 11.9853 10 14 7.55 14C5.1 14 3 11.9853 3 9.5C3 7.01469 5.1 5 7.55 5C10 5 12.1 7.01469 12.1 9.5Z">
+                                            </path>
                                             <path d="M7.55 9.5V14"></path>
                                             <path d="M7.55 5V9.5"></path>
                                             <path d="M9.1 1V18"></path>
@@ -1316,9 +1333,12 @@
                                                 <template x-for="conn in mongoConnections" :key="conn.name">
                                                     <div @click="changeMongoConnection(conn.name); open = false"
                                                         class="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-xs outline-none hover:bg-accent hover:text-accent-foreground">
-                                                        <span x-show="conn.name === selectedMongoConnection" class="absolute right-2 text-xs">✓</span>
+                                                        <span x-show="conn.name === selectedMongoConnection"
+                                                            class="absolute right-2 text-xs">✓</span>
                                                         <div class="flex items-center gap-2">
-                                                            <div class="w-2 h-2 rounded-full" :class="conn.status.connected ? 'bg-green-500' : 'bg-red-500'"></div>
+                                                            <div class="w-2 h-2 rounded-full"
+                                                                :class="conn.status.connected ? 'bg-green-500' : 'bg-red-500'">
+                                                            </div>
                                                             <span x-text="conn.name"></span>
                                                         </div>
                                                     </div>
@@ -1326,7 +1346,8 @@
                                             </div>
                                         </div>
 
-                                        <button @click="fetchMongoConnections()" class="h-9 px-3 text-sm bg-secondary hover:bg-secondary/80 rounded-md transition-colors">
+                                        <button @click="fetchMongoConnections()"
+                                            class="h-9 px-3 text-sm bg-secondary hover:bg-secondary/80 rounded-md transition-colors">
                                             Refresh
                                         </button>
                                     </div>
@@ -1367,7 +1388,9 @@
                                     <div class="text-2xl font-bold" x-text="mongoInfo.collections?.length || 0"></div>
                                     <p class="text-xs text-muted-foreground mt-1">
                                         <template x-for="(collection, index) in mongoInfo.collections || []">
-                                            <span x-text="collection"></span><span x-show="index < (mongoInfo.collections?.length - 1 || 0)" x-text="', '"></span>
+                                            <span x-text="collection"></span><span
+                                                x-show="index < (mongoInfo.collections?.length - 1 || 0)"
+                                                x-text="', '"></span>
                                         </template>
                                     </p>
                                 </div>
@@ -1378,7 +1401,8 @@
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                                 stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z">
+                                                </path>
                                                 <polyline points="14,2 14,8 20,8"></polyline>
                                                 <line x1="16" y1="13" x2="8" y2="13"></line>
                                                 <line x1="16" y1="17" x2="8" y2="17"></line>
@@ -1402,7 +1426,9 @@
                                             </svg>
                                         </div>
                                     </div>
-                                    <div class="text-2xl font-bold" x-text="mongoInfo.stats?.storageSize ? Math.round(mongoInfo.stats.storageSize / 1024 / 1024) + 'MB' : 'N/A'"></div>
+                                    <div class="text-2xl font-bold"
+                                        x-text="mongoInfo.stats?.storageSize ? Math.round(mongoInfo.stats.storageSize / 1024 / 1024) + 'MB' : 'N/A'">
+                                    </div>
                                 </div>
                             </div>
 
@@ -1462,14 +1488,18 @@
                                                     <tr class="border-b hover:bg-muted/50 transition-colors">
                                                         <template x-for="val in Object.values(row)">
                                                             <td class="p-3 align-middle font-mono text-xs whitespace-nowrap"
-                                                                x-text="typeof val === 'object' ? JSON.stringify(val) : val"></td>
+                                                                x-text="typeof val === 'object' ? JSON.stringify(val) : val">
+                                                            </td>
                                                         </template>
                                                     </tr>
                                                 </template>
                                             </template>
-                                            <template x-if="mongoQueryResults && mongoQueryResults.length === 0 && !mongoQueryError">
+                                            <template
+                                                x-if="mongoQueryResults && mongoQueryResults.length === 0 && !mongoQueryError">
                                                 <tr>
-                                                    <td class="p-4 text-center text-muted-foreground" :colspan="Object.keys(mongoQueryResults[0] || {}).length">Query executed
+                                                    <td class="p-4 text-center text-muted-foreground"
+                                                        :colspan="Object.keys(mongoQueryResults[0] || {}).length">Query
+                                                        executed
                                                         successfully. No documents returned.</td>
                                                 </tr>
                                             </template>
@@ -1633,7 +1663,7 @@
                                         class="h-24 w-24 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-border">
                                         <template x-if="userSettings.photoPath">
                                             <img :src="'/api/user/photos/' + userSettings.photoPath" alt="Profile"
-                                                class="h-full w-full object-cover">
+                                                class="h-full w-full object-cover" loading="lazy">
                                         </template>
                                         <template x-if="!userSettings.photoPath">
                                             <svg xmlns="http://www.w3.org/2000/svg"
