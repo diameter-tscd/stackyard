@@ -276,6 +276,32 @@
 						{
 							"physicalLocation": {
 								"artifactLocation": {
+									"uri": "pkg/utils/parameter.go"
+								},
+								"region": {
+									"endColumn": 15,
+									"endLine": 83,
+									"snippet": {
+										"text": "resp, err := http.Get(configURL)"
+									},
+									"sourceLanguage": "go",
+									"startColumn": 15,
+									"startLine": 83
+								}
+							}
+						}
+					],
+					"message": {
+						"text": "Potential HTTP request made with variable url"
+					},
+					"ruleId": "G107"
+				},
+				{
+					"level": "error",
+					"locations": [
+						{
+							"physicalLocation": {
+								"artifactLocation": {
 									"uri": "pkg/utils/io.go"
 								},
 								"region": {
@@ -294,7 +320,8 @@
 					"message": {
 						"text": "Expect file permissions to be 0600 or less"
 					},
-					"ruleId": "G302"
+					"ruleId": "G302",
+					"ruleIndex": 1
 				},
 				{
 					"level": "error",
@@ -320,7 +347,8 @@
 					"message": {
 						"text": "Expect directory permissions to be 0750 or less"
 					},
-					"ruleId": "G301"
+					"ruleId": "G301",
+					"ruleIndex": 1
 				},
 				{
 					"level": "error",
@@ -346,7 +374,8 @@
 					"message": {
 						"text": "Expect directory permissions to be 0750 or less"
 					},
-					"ruleId": "G301"
+					"ruleId": "G301",
+					"ruleIndex": 1
 				},
 				{
 					"level": "error",
@@ -373,7 +402,7 @@
 						"text": "Expect WriteFile permissions to be 0600 or less"
 					},
 					"ruleId": "G306",
-					"ruleIndex": 3
+					"ruleIndex": 4
 				},
 				{
 					"level": "error",
@@ -400,7 +429,7 @@
 						"text": "Expect WriteFile permissions to be 0600 or less"
 					},
 					"ruleId": "G306",
-					"ruleIndex": 3
+					"ruleIndex": 4
 				},
 				{
 					"level": "error",
@@ -427,7 +456,7 @@
 						"text": "Expect WriteFile permissions to be 0600 or less"
 					},
 					"ruleId": "G306",
-					"ruleIndex": 3
+					"ruleIndex": 4
 				},
 				{
 					"level": "error",
@@ -454,7 +483,7 @@
 						"text": "Expect WriteFile permissions to be 0600 or less"
 					},
 					"ruleId": "G306",
-					"ruleIndex": 3
+					"ruleIndex": 4
 				},
 				{
 					"level": "warning",
@@ -986,13 +1015,13 @@
 								},
 								"region": {
 									"endColumn": 2,
-									"endLine": 229,
+									"endLine": 290,
 									"snippet": {
 										"text": "srv.Shutdown(context.Background(), l)"
 									},
 									"sourceLanguage": "go",
 									"startColumn": 2,
-									"startLine": 229
+									"startLine": 290
 								}
 							}
 						}
@@ -1012,13 +1041,13 @@
 								},
 								"region": {
 									"endColumn": 3,
-									"endLine": 162,
+									"endLine": 223,
 									"snippet": {
 										"text": "srv.Shutdown(context.Background(), l)"
 									},
 									"sourceLanguage": "go",
 									"startColumn": 3,
-									"startLine": 162
+									"startLine": 223
 								}
 							}
 						}
@@ -1038,13 +1067,13 @@
 								},
 								"region": {
 									"endColumn": 3,
-									"endLine": 159,
+									"endLine": 220,
 									"snippet": {
 										"text": "srv.Shutdown(context.Background(), l)"
 									},
 									"sourceLanguage": "go",
 									"startColumn": 3,
-									"startLine": 159
+									"startLine": 220
 								}
 							}
 						}
@@ -1124,6 +1153,17 @@
 							"shortDescription": {
 								"text": "Improper Check or Handling of Exceptional Conditions"
 							}
+						},
+						{
+							"fullDescription": {
+								"text": "The software constructs a string for a command to executed by a separate component\nin another control sphere, but it does not properly delimit the\nintended arguments, options, or switches within that command string."
+							},
+							"guid": "d684c7e2-3856-3079-900b-f59c57ace34b",
+							"helpUri": "https://cwe.mitre.org/data/definitions/88.html",
+							"id": "88",
+							"shortDescription": {
+								"text": "Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')"
+							}
 						}
 					],
 					"version": "4.4"
@@ -1171,6 +1211,44 @@
 							],
 							"shortDescription": {
 								"text": "Errors unhandled"
+							}
+						},
+						{
+							"defaultConfiguration": {
+								"level": "error"
+							},
+							"fullDescription": {
+								"text": "Potential HTTP request made with variable url"
+							},
+							"help": {
+								"text": "Potential HTTP request made with variable url\nSeverity: MEDIUM\nConfidence: MEDIUM\n"
+							},
+							"id": "G107",
+							"name": "Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')",
+							"properties": {
+								"precision": "medium",
+								"tags": [
+									"security",
+									"MEDIUM"
+								]
+							},
+							"relationships": [
+								{
+									"kinds": [
+										"superset"
+									],
+									"target": {
+										"guid": "d684c7e2-3856-3079-900b-f59c57ace34b",
+										"id": "88",
+										"toolComponent": {
+											"guid": "f2856fc0-85b7-373f-83e7-6f8582243547",
+											"name": "CWE"
+										}
+									}
+								}
+							],
+							"shortDescription": {
+								"text": "Potential HTTP request made with variable url"
 							}
 						},
 						{
