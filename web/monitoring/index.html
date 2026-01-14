@@ -581,11 +581,12 @@
                             </div>
 
                             <div class="flex items-center gap-2">
-                                <button @click="toggleDummyLog()"
+                                <!-- Disabled Dummy Log Button -->
+                                <!-- <button @click="toggleDummyLog()"
                                     :class="dummyLogActive ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-200' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
                                     class="h-8 px-3 text-xs rounded-md transition-colors font-medium border border-transparent">
                                     <span x-text="dummyLogActive ? 'Dummy Logs: ON' : 'Enable Dummy Logs'"></span>
-                                </button>
+                                </button> -->
                                 <button @click="logs = []"
                                     class="h-8 px-3 text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md transition-colors font-medium">
                                     Clear

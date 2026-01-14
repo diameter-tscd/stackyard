@@ -86,46 +86,6 @@ var (
 	liveProgressColor = "#8daea5"
 )
 
-// Looping progress bar frames - slim style using dots
-var loopingProgressFrames = []string{
-	"●──────────────────────────────",
-	"●●─────────────────────────────",
-	"●●●────────────────────────────",
-	"●●●●───────────────────────────",
-	"●●●●●──────────────────────────",
-	"─●●●●●─────────────────────────",
-	"──●●●●●────────────────────────",
-	"───●●●●●───────────────────────",
-	"────●●●●●──────────────────────",
-	"─────●●●●●─────────────────────",
-	"──────●●●●●────────────────────",
-	"───────●●●●●───────────────────",
-	"────────●●●●●──────────────────",
-	"─────────●●●●●─────────────────",
-	"──────────●●●●●────────────────",
-	"───────────●●●●●───────────────",
-	"────────────●●●●●──────────────",
-	"─────────────●●●●●─────────────",
-	"──────────────●●●●●────────────",
-	"───────────────●●●●●───────────",
-	"────────────────●●●●●──────────",
-	"─────────────────●●●●●─────────",
-	"──────────────────●●●●●────────",
-	"───────────────────●●●●●───────",
-	"────────────────────●●●●●──────",
-	"─────────────────────●●●●●─────",
-	"──────────────────────●●●●●────",
-	"───────────────────────●●●●●───",
-	"────────────────────────●●●●●──",
-	"─────────────────────────●●●●●─",
-	"──────────────────────────●●●●●",
-	"───────────────────────────●●●●",
-	"────────────────────────────●●●",
-	"─────────────────────────────●●",
-	"──────────────────────────────●",
-	"───────────────────────────────",
-}
-
 // NewLiveModel creates a new live TUI model
 func NewLiveModel(cfg LiveConfig) *LiveModel {
 	s := spinner.New()
@@ -156,7 +116,7 @@ func NewLiveModel(cfg LiveConfig) *LiveModel {
 		startTime:       time.Now(),
 		width:           80,
 		height:          24,
-		maxLogs:         0, // Unlimited logs (0 disables the limit)
+		maxLogs:         1000, // Unlimited logs (0 disables the limit)
 		exitDialog:      exitDialog,
 		filterDialog:    filterDialog,
 	}
@@ -280,9 +240,9 @@ func (m *LiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
 
-	case liveTickMsg:
-		m.frame = (m.frame + 1) % len(loopingProgressFrames)
-		return m, tea.Batch(m.spinner.Tick, liveTickCmd())
+	// case liveTickMsg:
+	// 	m.frame = (m.frame + 1) % len(loopingProgressFrames)
+	// 	return m, tea.Batch(m.spinner.Tick, liveTickCmd())
 
 	case logMsg:
 		m.logsMutex.Lock()
@@ -346,7 +306,7 @@ func (m *LiveModel) View() string {
 	}
 
 	// Calculate fixed header height (banner + title + status + logs header + border + spacing)
-	headerHeight := 7 // banner(1) + title(1) + status(1) + spacing(1) + logs header(1) + border(1) + spacing(1)
+	headerHeight := 8 // banner(1) + title(1) + status(1) + spacing(1) + logs header(1) + border(1) + spacing(1)
 	if m.config.Banner != "" {
 		headerHeight++ // extra line for banner
 	}
@@ -394,17 +354,17 @@ func (m *LiveModel) View() string {
 	cyanStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(liveProgressColor)).Bold(true)
 
 	header := fmt.Sprintf("%s %s v%s %s",
-		cyanStyle.Render("●"),
+		cyanStyle.Render(" "),
 		liveTitleStyle.Render(m.config.AppName),
 		m.config.AppVersion,
-		cyanStyle.Render("●"),
+		cyanStyle.Render(" "),
 	)
 	mainContent.WriteString(header)
 	mainContent.WriteString("\n")
 
 	// Status line
 	uptime := time.Since(m.startTime).Round(time.Second)
-	statusLine := fmt.Sprintf("  %s %s  │  Service Port: %s  │  Monitor Port: %s  │  Env: %s  │  Uptime: %s",
+	statusLine := fmt.Sprintf("  %s %s  ●  Service Port: %s  ●  Monitor Port: %s  ●  Env: %s  ●  Uptime: %s",
 		m.spinner.View(),
 		liveStatusStyle.Render("RUNNING"),
 		liveInfoStyle.Render(m.config.Port),
@@ -426,8 +386,8 @@ func (m *LiveModel) View() string {
 
 	stickyLogsHeader := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#8daea5")).
-		Render("◆ Live Logs")
+		Foreground(lipgloss.Color("#626262ff")).
+		Render("▪ Live Logs")
 	mainContent.WriteString(stickyLogsHeader)
 	mainContent.WriteString("\n")
 	mainContent.WriteString(liveDimStyle.Render(strings.Repeat("─", logWidth)))
@@ -470,17 +430,17 @@ func (m *LiveModel) View() string {
 	// STICKY FOOTER - Always visible at the bottom
 	var footerText string
 	if m.filterDialog.IsActive() {
-		footerText = liveDimStyle.Render("Enter: apply filter │ Esc: cancel")
+		footerText = liveDimStyle.Render("Enter: apply filter ● Esc: cancel")
 	} else {
 		filterInfo := ""
 		if m.filterText != "" {
-			filterInfo = fmt.Sprintf("Filter: '%s' │ ", m.filterText)
+			filterInfo = fmt.Sprintf("Filter: '%s' ● ", m.filterText)
 		}
 		autoScrollInfo := ""
 		if m.autoScroll {
-			autoScrollInfo = "Auto-scroll: ON │ "
+			autoScrollInfo = "Auto-scroll: ON ● "
 		}
-		footerText = liveDimStyle.Render(fmt.Sprintf("%s%sLast update: %s │ q: exit │ /: filter │ F1: auto-scroll │ F2: clear logs │ ↑↓: scroll",
+		footerText = liveDimStyle.Render(fmt.Sprintf("%s%sLast update: %s ● q: exit ● /: filter ● F1: auto-scroll ● F2: clear logs ● ↑↓: scroll",
 			filterInfo, autoScrollInfo, time.Now().Format("15:04:05")))
 	}
 	mainContent.WriteString("\n")
