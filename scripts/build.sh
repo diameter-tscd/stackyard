@@ -39,7 +39,7 @@ echo -e "   ${P_PURPLE} \/ ${RESET}"
 echo -e "${GRAY}----------------------------------------------------------------------${RESET}"
 
 # 0. Check required tools
-echo -e "${B_PURPLE}[0/6]${RESET} ${P_CYAN}Checking required tools...${RESET}"
+echo -e "${B_PURPLE}[1/6]${RESET} ${P_CYAN}Checking required tools...${RESET}"
 
 # Check goversioninfo
 if ! command -v goversioninfo &> /dev/null; then
@@ -81,7 +81,7 @@ BACKUP_ROOT="${DIST_DIR}/backups"
 BACKUP_PATH="${BACKUP_ROOT}/${TIMESTAMP}"
 
 # 2. Stop running process
-echo -e "${B_PURPLE}[1/6]${RESET} ${P_CYAN}Checking for running process...${RESET}"
+echo -e "${B_PURPLE}[2/6]${RESET} ${P_CYAN}Checking for running process...${RESET}"
 if pgrep -x "$APP_NAME" >/dev/null; then
     echo -e "   ${B_YELLOW}! App is running. Stopping...${RESET}"
     pkill -x "$APP_NAME"
@@ -91,7 +91,7 @@ else
 fi
 
 # 3. Backup Old Files
-echo -e "${B_PURPLE}[2/6]${RESET} ${P_CYAN}Backing up old files...${RESET}"
+echo -e "${B_PURPLE}[3/6]${RESET} ${P_CYAN}Backing up old files...${RESET}"
 if [ -d "$DIST_DIR" ]; then
     mkdir -p "$BACKUP_PATH"
 
@@ -126,7 +126,7 @@ else
 fi
 
 # 6. Archive Backup
-echo -e "${B_PURPLE}[3/6]${RESET} ${P_CYAN}Archiving backup...${RESET}"
+echo -e "${B_PURPLE}[4/6]${RESET} ${P_CYAN}Archiving backup...${RESET}"
 if [ -d "$BACKUP_PATH" ]; then
     cd "$BACKUP_ROOT" || exit 1
     zip -r "${TIMESTAMP}.zip" "$TIMESTAMP"
@@ -141,7 +141,7 @@ fi
 mkdir -p "$DIST_DIR"
 
 # 4. Build
-echo -e "${B_PURPLE}[4/6]${RESET} ${P_CYAN}Building Go binary...${RESET}"
+echo -e "${B_PURPLE}[5/6]${RESET} ${P_CYAN}Building Go binary...${RESET}"
 if [ "$USE_GOVERSIONINFO" = true ]; then
     goversioninfo -platform-specific
 else
@@ -159,7 +159,7 @@ fi
 echo -e "   ${B_GREEN}+ Build successful:${RESET} ${B_WHITE}${DIST_DIR}/${APP_NAME}${RESET}"
 
 # 5. Copy Assets
-echo -e "${B_PURPLE}[5/6]${RESET} ${P_CYAN}Copying assets...${RESET}"
+echo -e "${B_PURPLE}[6/6]${RESET} ${P_CYAN}Copying assets...${RESET}"
 
 if [ -d "web" ]; then
     echo -e "   ${B_GREEN}+ Copying web folder...${RESET}"
