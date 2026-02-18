@@ -113,9 +113,9 @@ This wiki serves as the central knowledge base for the project, covering archite
     *   Security warnings and best practices for production setup.
 
 *   **[Service Implementation Guide](SERVICE_IMPLEMENTATION.md)**
-    *   Creating and implementing new services.
-    *   Service interface and registration.
-    *   Dynamic configuration setup.
+    *   Creating and implementing new services with use case documentation.
+    *   Service interface and registration with comprehensive descriptions.
+    *   Dynamic configuration setup and best practices.
 
 *   **[Integration Guide](INTEGRATION_GUIDE.md)**
     *   **Redis**: Configuration and usage of the Redis manager.
