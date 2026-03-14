@@ -71,7 +71,7 @@ Add to `internal/services/modules/service_hello.go`:
 package modules
 
 import (
-    "test-go/pkg/response"
+    "stackyard/pkg/response"
     "github.com/labstack/echo/v4"
 )
 

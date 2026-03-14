@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"test-go/pkg/logger"
-	"test-go/pkg/response"
-	"test-go/pkg/utils"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/response"
+	"stackyard/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 )

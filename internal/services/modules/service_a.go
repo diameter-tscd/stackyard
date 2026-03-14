@@ -1,8 +1,8 @@
 package modules
 
 import (
-	"test-go/pkg/request"
-	"test-go/pkg/response"
+	"stackyard/pkg/request"
+	"stackyard/pkg/response"
 	"time"
 
 	"github.com/labstack/echo/v4"

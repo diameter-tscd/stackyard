@@ -3,9 +3,9 @@ package modules
 import (
 	"context"
 	"fmt"
-	"test-go/pkg/infrastructure"
-	"test-go/pkg/logger"
-	"test-go/pkg/response"
+	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/response"
 
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"

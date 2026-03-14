@@ -1,7 +1,7 @@
 package services
 
 import (
-	"test-go/pkg/logger"
+	"stackyard/pkg/logger"
 
 	"github.com/labstack/echo/v4"
 )

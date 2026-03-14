@@ -3,7 +3,7 @@ package infrastructure
 import (
 	"context"
 	"fmt"
-	"test-go/config"
+	"stackyard/config"
 	"time"
 
 	"github.com/redis/go-redis/v9"

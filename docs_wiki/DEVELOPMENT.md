@@ -14,7 +14,7 @@ Create a new service in `internal/services/modules/service_yourname.go`:
 package modules
 
 import (
-    "test-go/pkg/response"
+    "stackyard/pkg/response"
     "github.com/labstack/echo/v4"
 )
 

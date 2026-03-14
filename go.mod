@@ -1,4 +1,4 @@
-module test-go
+module stackyard
 
 go 1.25.3
 

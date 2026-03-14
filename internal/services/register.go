@@ -1,10 +1,10 @@
 package services
 
 import (
-	"test-go/config"
-	"test-go/internal/services/modules"
-	"test-go/pkg/infrastructure"
-	"test-go/pkg/logger"
+	"stackyard/config"
+	"stackyard/internal/services/modules"
+	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/logger"
 
 	"github.com/labstack/echo/v4"
 )

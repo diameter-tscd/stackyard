@@ -1,8 +1,8 @@
 package examples
 
 import (
-	"test-go/pkg/request"
-	"test-go/pkg/response"
+	"stackyard/pkg/request"
+	"stackyard/pkg/response"
 
 	"github.com/labstack/echo/v4"
 )
