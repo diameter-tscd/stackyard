@@ -4,7 +4,10 @@ import (
 	"context"
 	"strconv"
 
+	"stackyard/config"
+	"stackyard/pkg/registry"
 	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/interfaces"
 	"stackyard/pkg/logger"
 	"stackyard/pkg/response"
 
@@ -128,4 +131,12 @@ func (s *ServiceD) deleteTask(c echo.Context) error {
 	}
 
 	return response.Success(c, nil, "Task deleted")
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_d", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		logger.Debug("Service INIT LOADED")
+		return NewServiceD(deps.PostgresManager, config.Services.IsEnabled("service_d"), logger)
+	})
 }

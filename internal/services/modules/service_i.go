@@ -1,7 +1,10 @@
 package modules
 
 import (
+	"stackyard/config"
+	"stackyard/pkg/registry"
 	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/interfaces"
 	"stackyard/pkg/logger"
 	"stackyard/pkg/response"
 	"strconv"
@@ -201,4 +204,11 @@ func (s *ServiceI) getHealth(c echo.Context) error {
 	}
 
 	return response.Success(c, health, "Grafana health check successful")
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_i", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		return NewServiceI(deps.GrafanaManager, config.Services.IsEnabled("service_i"), logger)
+	})
 }

@@ -3,7 +3,10 @@ package modules
 import (
 	"context"
 	"fmt"
+	"stackyard/config"
+	"stackyard/pkg/registry"
 	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/interfaces"
 	"stackyard/pkg/logger"
 	"stackyard/pkg/response"
 
@@ -374,4 +377,18 @@ func (s *ServiceG) getProductAnalytics(c echo.Context) error {
 	}
 
 	return response.Success(c, result, fmt.Sprintf("Product analytics for tenant '%s' database", tenant))
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_g", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		if !config.Services.IsEnabled("service_g") {
+			return nil
+		}
+		if deps.MongoConnectionManager == nil {
+			logger.Warn("MongoDB connections not available, skipping Service G")
+			return nil
+		}
+		return NewServiceG(deps.MongoConnectionManager, true, logger)
+	})
 }
