@@ -13,7 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"test-go/pkg/response"
+	"stackyard/config"
+	"stackyard/pkg/registry"
+	"stackyard/pkg/interfaces"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/response"
 
 	"github.com/labstack/echo/v4"
 )
@@ -332,4 +336,15 @@ func (s *ServiceE) DecryptJSON(encryptedData string, target interface{}) error {
 	}
 
 	return json.Unmarshal(decrypted, target)
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_e", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		encryptionConfig := map[string]interface{}{
+			"algorithm": config.Encryption.Algorithm,
+			"key":       config.Encryption.Key,
+		}
+		return NewServiceE(config.Encryption.Enabled, encryptionConfig)
+	})
 }

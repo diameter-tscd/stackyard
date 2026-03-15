@@ -3,8 +3,8 @@ package infrastructure
 import (
 	"context"
 	"fmt"
-	"test-go/config"
-	"test-go/pkg/logger"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 
 	"github.com/IBM/sarama"
 )

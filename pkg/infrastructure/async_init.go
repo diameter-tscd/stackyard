@@ -2,9 +2,9 @@ package infrastructure
 
 import (
 	"context"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 	"sync"
-	"test-go/config"
-	"test-go/pkg/logger"
 	"time"
 )
 

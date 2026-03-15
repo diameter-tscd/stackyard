@@ -3,8 +3,12 @@ package modules
 import (
 	"time"
 
-	"test-go/pkg/cache"
-	"test-go/pkg/response"
+	"stackyard/config"
+	"stackyard/pkg/registry"
+	"stackyard/pkg/cache"
+	"stackyard/pkg/interfaces"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/response"
 
 	"github.com/labstack/echo/v4"
 )
@@ -59,5 +63,12 @@ func (s *ServiceC) RegisterRoutes(g *echo.Group) {
 			"key":     key,
 			"ttl":     ttl.String(),
 		})
+	})
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_c", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		return NewServiceC(config.Services.IsEnabled("service_c"))
 	})
 }

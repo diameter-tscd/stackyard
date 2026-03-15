@@ -2,14 +2,14 @@ package monitoring
 
 import (
 	"net/http"
-	"test-go/config"
-	"test-go/internal/monitoring/database"
-	"test-go/internal/monitoring/session"
-	"test-go/pkg/infrastructure"
-	"test-go/pkg/logger"
+	"stackyard/config"
+	"stackyard/internal/monitoring/database"
+	"stackyard/internal/monitoring/session"
+	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/logger"
 	"time"
 
-	monMiddleware "test-go/internal/monitoring/middleware"
+	monMiddleware "stackyard/internal/monitoring/middleware"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"

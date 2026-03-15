@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"stackyard/config"
 	"sync"
-	"test-go/config"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/driver/postgres"

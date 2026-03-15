@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 	"strings"
-	"test-go/config"
-	"test-go/pkg/logger"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"

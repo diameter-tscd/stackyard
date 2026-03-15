@@ -3,9 +3,9 @@ package tui
 import (
 	"fmt"
 	"os"
+	"stackyard/pkg/tui/template"
 	"strings"
 	"sync"
-	"test-go/pkg/tui/template"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"

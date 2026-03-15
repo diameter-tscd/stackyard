@@ -7,13 +7,13 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"stackyard/config"
+	"stackyard/internal/monitoring"
+	"stackyard/internal/server"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/tui"
+	"stackyard/pkg/utils"
 	"syscall"
-	"test-go/config"
-	"test-go/internal/monitoring"
-	"test-go/internal/server"
-	"test-go/pkg/logger"
-	"test-go/pkg/tui"
-	"test-go/pkg/utils"
 	"time"
 )
 
@@ -193,7 +193,7 @@ func runWithTUI(cfg *config.Config, bannerText string, broadcaster *monitoring.L
 	liveTUI.AddLog("info", "Server starting on port "+cfg.Server.Port)
 	liveTUI.AddLog("info", "Environment: "+cfg.App.Env)
 
-	// Start Server in background
+	// Start Server in background - infrastructure will be initialized by the server
 	srv := server.New(cfg, l, broadcaster)
 	go func() {
 		liveTUI.AddLog("info", "HTTP server listening...")

@@ -2,10 +2,13 @@ package modules
 
 import (
 	"fmt"
+	"stackyard/config"
+	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/interfaces"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/registry"
+	"stackyard/pkg/response"
 	"strconv"
-	"test-go/pkg/infrastructure"
-	"test-go/pkg/logger"
-	"test-go/pkg/response"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -231,4 +234,18 @@ func (s *ServiceF) deleteOrder(c echo.Context) error {
 	}
 
 	return response.Success(c, nil, fmt.Sprintf("Order deleted from tenant '%s' database", tenant))
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_f", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		if !config.Services.IsEnabled("service_f") {
+			return nil
+		}
+		if deps == nil || deps.PostgresConnectionManager == nil {
+			logger.Warn("PostgreSQL connections not available, skipping Service F")
+			return nil
+		}
+		return NewServiceF(deps.PostgresConnectionManager, true, logger)
+	})
 }

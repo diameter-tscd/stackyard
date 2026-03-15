@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"test-go/pkg/logger"
-	"test-go/pkg/response"
-	"test-go/pkg/utils"
+	"stackyard/config"
+	"stackyard/pkg/registry"
+	"stackyard/pkg/interfaces"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/response"
+	"stackyard/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 )
@@ -276,4 +279,11 @@ func (s *ServiceH) startDemoStreams() {
 		s.streams[streamID] = generator
 		generator.Start()
 	}
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_h", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		return NewServiceH(config.Services.IsEnabled("service_h"), logger)
+	})
 }

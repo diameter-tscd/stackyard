@@ -3,7 +3,7 @@ package infrastructure
 import (
 	"context"
 	"io"
-	"test-go/config"
+	"stackyard/config"
 	"time"
 
 	"github.com/minio/minio-go/v7"

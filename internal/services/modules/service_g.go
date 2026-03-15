@@ -3,9 +3,12 @@ package modules
 import (
 	"context"
 	"fmt"
-	"test-go/pkg/infrastructure"
-	"test-go/pkg/logger"
-	"test-go/pkg/response"
+	"stackyard/config"
+	"stackyard/pkg/infrastructure"
+	"stackyard/pkg/interfaces"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/registry"
+	"stackyard/pkg/response"
 
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
@@ -374,4 +377,18 @@ func (s *ServiceG) getProductAnalytics(c echo.Context) error {
 	}
 
 	return response.Success(c, result, fmt.Sprintf("Product analytics for tenant '%s' database", tenant))
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_g", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		if !config.Services.IsEnabled("service_g") {
+			return nil
+		}
+		if deps == nil || deps.MongoConnectionManager == nil {
+			logger.Warn("MongoDB connections not available, skipping Service G")
+			return nil
+		}
+		return NewServiceG(deps.MongoConnectionManager, true, logger)
+	})
 }

@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src=".assets/Stackyard_logo.PNG" alt="Stackyard" style="max-width: 500px;"/>
+  <img src=".assets/Stackyard_logo.PNG" alt="Stackyard" style="width: 50%; max-width: 400px;"/>
 </div>
 <div align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"/>
@@ -57,22 +57,6 @@ go run cmd/app/main.go
 
 **[Full Documentation](docs_wiki/)** - Comprehensive guides and references
 
-### Core Documentation
-- **[Configuration Guide](docs_wiki/CONFIGURATION_GUIDE.md)** - Complete configuration reference
-- **[API Response Structure](docs_wiki/API_RESPONSE_STRUCTURE.md)** - Standard response formats
-- **[Architecture Diagrams](docs_wiki/ARCHITECTURE_DIAGRAMS.md)** - System design and flow diagrams
-- **[Service Implementation](docs_wiki/SERVICE_IMPLEMENTATION.md)** - How to add new services
-
-### Infrastructure & Integration
-- **[Integration Guide](docs_wiki/INTEGRATION_GUIDE.md)** - Redis, PostgreSQL, Kafka, MinIO setup
-- **[Build Scripts](docs_wiki/BUILD_SCRIPTS.md)** - Production deployment automation
-- **[Package Management](docs_wiki/CHANGE_PACKAGE_SCRIPTS.md)** - Module renaming tools
-
-### Security & Features
-- **[API Encryption](docs_wiki/ENCRYPTION_API.md)** - End-to-end encryption
-- **[API Obfuscation](docs_wiki/API_OBFUSCATION.md)** - Data obfuscation mechanisms
-- **[TUI Implementation](docs_wiki/TUI_IMPLEMENTATION.md)** - Terminal interface details
-
 ## Project Structure
 
 ```
@@ -111,4 +95,4 @@ Apache License Version 2.0: [LICENSE](LICENSE)
 
 ---
 
-**Built with 🐸 using Go, Echo, Alpine.js, Tailwind CSS**
+**Built using Go, Echo, Alpine.js, Tailwind CSS**

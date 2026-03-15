@@ -1,8 +1,12 @@
 package modules
 
 import (
-	"test-go/pkg/request"
-	"test-go/pkg/response"
+	"stackyard/config"
+	"stackyard/pkg/interfaces"
+	"stackyard/pkg/logger"
+	"stackyard/pkg/registry"
+	"stackyard/pkg/request"
+	"stackyard/pkg/response"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -168,4 +172,11 @@ func (s *ServiceA) DeleteUser(c echo.Context) error {
 	// Mock deletion - in real app, delete from database
 	// No content response
 	return response.NoContent(c)
+}
+
+// Auto-registration function - called when package is imported
+func init() {
+	registry.RegisterService("service_a", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		return NewServiceA(config.Services.IsEnabled("service_a"))
+	})
 }
