@@ -1,6 +1,6 @@
 # Getting Started with Stackyard
 
-Welcome! This guide will get you up and running with Stackyard in minutes. Stackyard is a production-ready Go application framework with modular services, real-time monitoring, and extensive infrastructure integrations.
+This guide will get you up and running with Stackyard in minutes. Stackyard is a production-ready Go application framework with modular services, real-time monitoring, and extensive infrastructure integrations.
 
 ## Quick Start
 
@@ -27,7 +27,7 @@ go run cmd/app/main.go
 
 Open your browser and visit:
 - **Monitoring Dashboard**: http://localhost:9090
-- **Login**: `admin` / `admin` (⚠️ **Change this immediately!**)
+- **Login**: `admin` / `admin` (Change this immediately)
 
 ## Basic Configuration
 

@@ -4,7 +4,7 @@ This document provides a high-level overview of Stackyard's architecture, design
 
 ## System Overview
 
-Stackyard is a **modular, service-oriented Go application framework** built on top of the Echo web framework. It emphasizes **clean architecture**, **dependency injection**, and **production readiness** with comprehensive monitoring and infrastructure integrations.
+Stackyard is a modular, service-oriented Go application framework built on top of the Echo web framework. It emphasizes clean architecture, dependency injection, and production readiness with comprehensive monitoring and infrastructure integrations.
 
 ## Core Architecture Principles
 
