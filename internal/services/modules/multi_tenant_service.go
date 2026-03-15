@@ -27,17 +27,17 @@ type MultiTenantOrder struct {
 
 // ServiceF demonstrates using multiple PostgreSQL connections with GORM
 // This service shows how to work with different databases dynamically using ORM
-type ServiceF struct {
+type MultiTenantService struct {
 	enabled                   bool
 	postgresConnectionManager *infrastructure.PostgresConnectionManager
 	logger                    *logger.Logger
 }
 
-func NewServiceF(
+func NewMultiTenantService(
 	postgresConnectionManager *infrastructure.PostgresConnectionManager,
 	enabled bool,
 	logger *logger.Logger,
-) *ServiceF {
+) *MultiTenantService {
 	// Auto-migrate the schema for each connected database
 	if enabled && postgresConnectionManager != nil {
 		allConnections := postgresConnectionManager.GetAllConnections()
@@ -50,18 +50,20 @@ func NewServiceF(
 		}
 	}
 
-	return &ServiceF{
+	return &MultiTenantService{
 		enabled:                   enabled,
 		postgresConnectionManager: postgresConnectionManager,
 		logger:                    logger,
 	}
 }
 
-func (s *ServiceF) Name() string        { return "Service F (Multi-Tenant Orders - GORM)" }
-func (s *ServiceF) Enabled() bool       { return s.enabled }
-func (s *ServiceF) Endpoints() []string { return []string{"/orders/{tenant}", "/orders/{tenant}/{id}"} }
+func (s *MultiTenantService) Name() string  { return "Multi-Tenant Service" }
+func (s *MultiTenantService) Enabled() bool { return s.enabled }
+func (s *MultiTenantService) Endpoints() []string {
+	return []string{"/orders/{tenant}", "/orders/{tenant}/{id}"}
+}
 
-func (s *ServiceF) RegisterRoutes(g *echo.Group) {
+func (s *MultiTenantService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/orders")
 
 	// Routes with tenant parameter for database selection
@@ -73,7 +75,7 @@ func (s *ServiceF) RegisterRoutes(g *echo.Group) {
 }
 
 // listOrdersByTenant lists orders from a specific tenant database
-func (s *ServiceF) listOrdersByTenant(c echo.Context) error {
+func (s *MultiTenantService) listOrdersByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 
 	// Get the database connection for this tenant
@@ -93,7 +95,7 @@ func (s *ServiceF) listOrdersByTenant(c echo.Context) error {
 }
 
 // createOrder creates a new order in the specified tenant database
-func (s *ServiceF) createOrder(c echo.Context) error {
+func (s *MultiTenantService) createOrder(c echo.Context) error {
 	tenant := c.Param("tenant")
 
 	// Get the database connection for this tenant
@@ -121,7 +123,7 @@ func (s *ServiceF) createOrder(c echo.Context) error {
 }
 
 // getOrderByTenant retrieves a specific order from a tenant database
-func (s *ServiceF) getOrderByTenant(c echo.Context) error {
+func (s *MultiTenantService) getOrderByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -149,7 +151,7 @@ func (s *ServiceF) getOrderByTenant(c echo.Context) error {
 }
 
 // updateOrder updates an order in the specified tenant database
-func (s *ServiceF) updateOrder(c echo.Context) error {
+func (s *MultiTenantService) updateOrder(c echo.Context) error {
 	tenant := c.Param("tenant")
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -209,7 +211,7 @@ func (s *ServiceF) updateOrder(c echo.Context) error {
 }
 
 // deleteOrder deletes an order from the specified tenant database
-func (s *ServiceF) deleteOrder(c echo.Context) error {
+func (s *MultiTenantService) deleteOrder(c echo.Context) error {
 	tenant := c.Param("tenant")
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -238,14 +240,14 @@ func (s *ServiceF) deleteOrder(c echo.Context) error {
 
 // Auto-registration function - called when package is imported
 func init() {
-	registry.RegisterService("service_f", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
-		if !config.Services.IsEnabled("service_f") {
+	registry.RegisterService("multi_tenant_service", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		if !config.Services.IsEnabled("multi_tenant_service") {
 			return nil
 		}
 		if deps == nil || deps.PostgresConnectionManager == nil {
-			logger.Warn("PostgreSQL connections not available, skipping Service F")
+			logger.Warn("PostgreSQL connections not available, skipping Multi-Tenant Service")
 			return nil
 		}
-		return NewServiceF(deps.PostgresConnectionManager, true, logger)
+		return NewMultiTenantService(deps.PostgresConnectionManager, true, logger)
 	})
 }

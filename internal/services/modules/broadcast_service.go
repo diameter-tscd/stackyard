@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"stackyard/config"
-	"stackyard/pkg/registry"
 	"stackyard/pkg/interfaces"
 	"stackyard/pkg/logger"
+	"stackyard/pkg/registry"
 	"stackyard/pkg/response"
 	"stackyard/pkg/utils"
 
@@ -95,15 +95,15 @@ func (sg *SimpleStreamGenerator) generateEvents() {
 
 // ServiceH is a super simple demo of using the broadcast utility
 // Shows how easy it is to add event streaming to any service!
-type ServiceH struct {
+type BroadcastService struct {
 	enabled     bool
 	broadcaster *utils.EventBroadcaster
 	streams     map[string]*SimpleStreamGenerator
 	logger      *logger.Logger
 }
 
-func NewServiceH(enabled bool, logger *logger.Logger) *ServiceH {
-	service := &ServiceH{
+func NewBroadcastService(enabled bool, logger *logger.Logger) *BroadcastService {
+	service := &BroadcastService{
 		enabled:     enabled,
 		broadcaster: utils.NewEventBroadcaster(),
 		streams:     make(map[string]*SimpleStreamGenerator),
@@ -111,21 +111,21 @@ func NewServiceH(enabled bool, logger *logger.Logger) *ServiceH {
 	}
 
 	if enabled {
-		logger.Info("Service H starting - broadcasting made easy!")
+		logger.Info("Broadcast Service starting - broadcasting made easy!")
 		service.startDemoStreams()
-		logger.Info("Service H ready!")
+		logger.Info("Broadcast Service ready!")
 	}
 
 	return service
 }
 
-func (s *ServiceH) Name() string  { return "Service H (Broadcast Utility Demo)" }
-func (s *ServiceH) Enabled() bool { return s.enabled }
-func (s *ServiceH) Endpoints() []string {
+func (s *BroadcastService) Name() string  { return "Broadcast Service" }
+func (s *BroadcastService) Enabled() bool { return s.enabled }
+func (s *BroadcastService) Endpoints() []string {
 	return []string{"/events/stream/{stream_id}", "/events/broadcast", "/events/streams"}
 }
 
-func (s *ServiceH) RegisterRoutes(g *echo.Group) {
+func (s *BroadcastService) RegisterRoutes(g *echo.Group) {
 	events := g.Group("/events")
 	events.GET("/stream/:stream_id", s.streamEvents)
 	events.POST("/broadcast", s.broadcastEvent)
@@ -138,7 +138,7 @@ func (s *ServiceH) RegisterRoutes(g *echo.Group) {
 // HANDLER METHODS - Using Broadcast Utility
 // =========================================
 
-func (s *ServiceH) streamEvents(c echo.Context) error {
+func (s *BroadcastService) streamEvents(c echo.Context) error {
 	streamID := c.Param("stream_id")
 	client := s.broadcaster.Subscribe(streamID)
 	defer s.broadcaster.Unsubscribe(client.ID)
@@ -154,7 +154,7 @@ func (s *ServiceH) streamEvents(c echo.Context) error {
 		ID:        "connected",
 		Type:      "connection",
 		Message:   "Connected to stream: " + streamID,
-		Data:      map[string]interface{}{"stream_id": streamID, "service": "service_h"},
+		Data:      map[string]interface{}{"stream_id": streamID, "service": "broadcast_service"},
 		Timestamp: time.Now().Unix(),
 		StreamID:  streamID,
 	}
@@ -174,7 +174,7 @@ func (s *ServiceH) streamEvents(c echo.Context) error {
 	}
 }
 
-func (s *ServiceH) broadcastEvent(c echo.Context) error {
+func (s *BroadcastService) broadcastEvent(c echo.Context) error {
 	type BroadcastRequest struct {
 		StreamID string                 `json:"stream_id,omitempty"`
 		Type     string                 `json:"type" validate:"required"`
@@ -200,7 +200,7 @@ func (s *ServiceH) broadcastEvent(c echo.Context) error {
 	}
 }
 
-func (s *ServiceH) getActiveStreams(c echo.Context) error {
+func (s *BroadcastService) getActiveStreams(c echo.Context) error {
 	activeStreams := s.broadcaster.GetActiveStreams()
 	totalClients := s.broadcaster.GetTotalClients()
 	streamCount := s.broadcaster.GetStreamCount()
@@ -217,13 +217,13 @@ func (s *ServiceH) getActiveStreams(c echo.Context) error {
 		"streams":       streamInfo,
 		"total_clients": totalClients,
 		"stream_count":  streamCount,
-		"service":       "service_h",
+		"service":       "broadcast_service",
 	}
 
 	return response.Success(c, result, "Active streams retrieved")
 }
 
-func (s *ServiceH) startStream(c echo.Context) error {
+func (s *BroadcastService) startStream(c echo.Context) error {
 	streamID := c.Param("stream_id")
 
 	if generator, exists := s.streams[streamID]; exists {
@@ -238,7 +238,7 @@ func (s *ServiceH) startStream(c echo.Context) error {
 	return response.Created(c, nil, fmt.Sprintf("Stream '%s' created and started", streamID))
 }
 
-func (s *ServiceH) stopStream(c echo.Context) error {
+func (s *BroadcastService) stopStream(c echo.Context) error {
 	streamID := c.Param("stream_id")
 
 	generator, exists := s.streams[streamID]
@@ -256,7 +256,7 @@ func (s *ServiceH) stopStream(c echo.Context) error {
 // HELPER METHODS
 // =========================================
 
-func (s *ServiceH) sendSSEEvent(c echo.Context, event utils.EventData) error {
+func (s *BroadcastService) sendSSEEvent(c echo.Context, event utils.EventData) error {
 	eventJSON, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -271,7 +271,7 @@ func (s *ServiceH) sendSSEEvent(c echo.Context, event utils.EventData) error {
 	return nil
 }
 
-func (s *ServiceH) startDemoStreams() {
+func (s *BroadcastService) startDemoStreams() {
 	streams := []string{"demo-notifications", "demo-metrics", "demo-alerts"}
 
 	for _, streamID := range streams {
@@ -283,7 +283,7 @@ func (s *ServiceH) startDemoStreams() {
 
 // Auto-registration function - called when package is imported
 func init() {
-	registry.RegisterService("service_h", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
-		return NewServiceH(config.Services.IsEnabled("service_h"), logger)
+	registry.RegisterService("broadcast_service", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		return NewBroadcastService(config.Services.IsEnabled("broadcast_service"), logger)
 	})
 }

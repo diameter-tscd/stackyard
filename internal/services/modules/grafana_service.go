@@ -13,25 +13,25 @@ import (
 )
 
 // ServiceI provides Grafana integration endpoints
-type ServiceI struct {
+type GrafanaService struct {
 	grafanaManager *infrastructure.GrafanaManager
 	enabled        bool
 	logger         *logger.Logger
 }
 
-func NewServiceI(grafanaManager *infrastructure.GrafanaManager, enabled bool, logger *logger.Logger) *ServiceI {
-	return &ServiceI{
+func NewGrafanaService(grafanaManager *infrastructure.GrafanaManager, enabled bool, logger *logger.Logger) *GrafanaService {
+	return &GrafanaService{
 		grafanaManager: grafanaManager,
 		enabled:        enabled,
 		logger:         logger,
 	}
 }
 
-func (s *ServiceI) Name() string        { return "Grafana Integration Service" }
-func (s *ServiceI) Enabled() bool       { return s.enabled && s.grafanaManager != nil }
-func (s *ServiceI) Endpoints() []string { return []string{"/grafana"} }
+func (s *GrafanaService) Name() string        { return "Grafana Service" }
+func (s *GrafanaService) Enabled() bool       { return s.enabled && s.grafanaManager != nil }
+func (s *GrafanaService) Endpoints() []string { return []string{"/grafana"} }
 
-func (s *ServiceI) RegisterRoutes(g *echo.Group) {
+func (s *GrafanaService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/grafana")
 
 	// Dashboard management
@@ -52,7 +52,7 @@ func (s *ServiceI) RegisterRoutes(g *echo.Group) {
 }
 
 // createDashboard creates a new Grafana dashboard
-func (s *ServiceI) createDashboard(c echo.Context) error {
+func (s *GrafanaService) createDashboard(c echo.Context) error {
 	var dashboard infrastructure.GrafanaDashboard
 	if err := c.Bind(&dashboard); err != nil {
 		return response.BadRequest(c, "Invalid dashboard data")
@@ -68,7 +68,7 @@ func (s *ServiceI) createDashboard(c echo.Context) error {
 }
 
 // updateDashboard updates an existing Grafana dashboard
-func (s *ServiceI) updateDashboard(c echo.Context) error {
+func (s *GrafanaService) updateDashboard(c echo.Context) error {
 	uid := c.Param("uid")
 	if uid == "" {
 		return response.BadRequest(c, "Dashboard UID is required")
@@ -92,7 +92,7 @@ func (s *ServiceI) updateDashboard(c echo.Context) error {
 }
 
 // getDashboard retrieves a Grafana dashboard by UID
-func (s *ServiceI) getDashboard(c echo.Context) error {
+func (s *GrafanaService) getDashboard(c echo.Context) error {
 	uid := c.Param("uid")
 	if uid == "" {
 		return response.BadRequest(c, "Dashboard UID is required")
@@ -108,7 +108,7 @@ func (s *ServiceI) getDashboard(c echo.Context) error {
 }
 
 // deleteDashboard deletes a Grafana dashboard by UID
-func (s *ServiceI) deleteDashboard(c echo.Context) error {
+func (s *GrafanaService) deleteDashboard(c echo.Context) error {
 	uid := c.Param("uid")
 	if uid == "" {
 		return response.BadRequest(c, "Dashboard UID is required")
@@ -124,7 +124,7 @@ func (s *ServiceI) deleteDashboard(c echo.Context) error {
 }
 
 // listDashboards lists all Grafana dashboards
-func (s *ServiceI) listDashboards(c echo.Context) error {
+func (s *GrafanaService) listDashboards(c echo.Context) error {
 	// Parse pagination parameters
 	page := 1
 	perPage := 50
@@ -164,7 +164,7 @@ func (s *ServiceI) listDashboards(c echo.Context) error {
 }
 
 // createDataSource creates a new Grafana data source
-func (s *ServiceI) createDataSource(c echo.Context) error {
+func (s *GrafanaService) createDataSource(c echo.Context) error {
 	var ds infrastructure.GrafanaDataSource
 	if err := c.Bind(&ds); err != nil {
 		return response.BadRequest(c, "Invalid data source data")
@@ -180,7 +180,7 @@ func (s *ServiceI) createDataSource(c echo.Context) error {
 }
 
 // createAnnotation creates a new Grafana annotation
-func (s *ServiceI) createAnnotation(c echo.Context) error {
+func (s *GrafanaService) createAnnotation(c echo.Context) error {
 	var annotation infrastructure.GrafanaAnnotation
 	if err := c.Bind(&annotation); err != nil {
 		return response.BadRequest(c, "Invalid annotation data")
@@ -196,7 +196,7 @@ func (s *ServiceI) createAnnotation(c echo.Context) error {
 }
 
 // getHealth returns Grafana health status
-func (s *ServiceI) getHealth(c echo.Context) error {
+func (s *GrafanaService) getHealth(c echo.Context) error {
 	health, err := s.grafanaManager.GetHealth(c.Request().Context())
 	if err != nil {
 		s.logger.Error("Failed to get Grafana health", err)
@@ -208,14 +208,14 @@ func (s *ServiceI) getHealth(c echo.Context) error {
 
 // Auto-registration function - called when package is imported
 func init() {
-	registry.RegisterService("service_i", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
-		if !config.Services.IsEnabled("service_i") {
+	registry.RegisterService("grafana_service", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		if !config.Services.IsEnabled("grafana_service") {
 			return nil
 		}
 		if deps == nil || deps.GrafanaManager == nil {
-			logger.Warn("Grafana manager not available, skipping Service I")
+			logger.Warn("Grafana manager not available, skipping Grafana Service")
 			return nil
 		}
-		return NewServiceI(deps.GrafanaManager, true, logger)
+		return NewGrafanaService(deps.GrafanaManager, true, logger)
 	})
 }

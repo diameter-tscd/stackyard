@@ -14,21 +14,21 @@ import (
 	"time"
 
 	"stackyard/config"
-	"stackyard/pkg/registry"
 	"stackyard/pkg/interfaces"
 	"stackyard/pkg/logger"
+	"stackyard/pkg/registry"
 	"stackyard/pkg/response"
 
 	"github.com/labstack/echo/v4"
 )
 
-type ServiceE struct {
+type EncryptionService struct {
 	enabled       bool
 	algorithm     string
 	encryptionKey []byte
 }
 
-func NewServiceE(enabled bool, config map[string]interface{}) *ServiceE {
+func NewEncryptionService(enabled bool, config map[string]interface{}) *EncryptionService {
 	// Extract configuration
 	algorithm := "aes-256-gcm"
 	key := ""
@@ -55,20 +55,20 @@ func NewServiceE(enabled bool, config map[string]interface{}) *ServiceE {
 		keyBytes = keyBytes[:32]
 	}
 
-	return &ServiceE{
+	return &EncryptionService{
 		enabled:       enabled,
 		algorithm:     algorithm,
 		encryptionKey: keyBytes,
 	}
 }
 
-func (s *ServiceE) Name() string  { return "Service E (Encryption)" }
-func (s *ServiceE) Enabled() bool { return s.enabled }
-func (s *ServiceE) Endpoints() []string {
+func (s *EncryptionService) Name() string  { return "Encryption Service" }
+func (s *EncryptionService) Enabled() bool { return s.enabled }
+func (s *EncryptionService) Endpoints() []string {
 	return []string{"/encryption/encrypt", "/encryption/decrypt", "/encryption/status", "/encryption/key-rotate"}
 }
 
-func (s *ServiceE) RegisterRoutes(g *echo.Group) {
+func (s *EncryptionService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/encryption")
 
 	// Encrypt endpoint
@@ -123,7 +123,7 @@ type KeyRotateRequest struct {
 }
 
 // Encryption/Decryption functions
-func (s *ServiceE) encrypt(data []byte) (string, error) {
+func (s *EncryptionService) encrypt(data []byte) (string, error) {
 	block, err := aes.NewCipher(s.encryptionKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to create cipher: %v", err)
@@ -148,7 +148,7 @@ func (s *ServiceE) encrypt(data []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(encrypted), nil
 }
 
-func (s *ServiceE) decrypt(encryptedData string) ([]byte, error) {
+func (s *EncryptionService) decrypt(encryptedData string) ([]byte, error) {
 	// Decode from base64
 	data, err := base64.StdEncoding.DecodeString(encryptedData)
 	if err != nil {
@@ -184,7 +184,7 @@ func (s *ServiceE) decrypt(encryptedData string) ([]byte, error) {
 }
 
 // Handlers
-func (s *ServiceE) EncryptData(c echo.Context) error {
+func (s *EncryptionService) EncryptData(c echo.Context) error {
 	var req EncryptRequest
 	if err := c.Bind(&req); err != nil {
 		return response.BadRequest(c, "Invalid request body")
@@ -212,7 +212,7 @@ func (s *ServiceE) EncryptData(c echo.Context) error {
 	return response.Success(c, resp, "Data encrypted successfully")
 }
 
-func (s *ServiceE) DecryptData(c echo.Context) error {
+func (s *EncryptionService) DecryptData(c echo.Context) error {
 	var req DecryptRequest
 	if err := c.Bind(&req); err != nil {
 		return response.BadRequest(c, "Invalid request body")
@@ -240,7 +240,7 @@ func (s *ServiceE) DecryptData(c echo.Context) error {
 	return response.Success(c, resp, "Data decrypted successfully")
 }
 
-func (s *ServiceE) GetStatus(c echo.Context) error {
+func (s *EncryptionService) GetStatus(c echo.Context) error {
 	// Get current key info (show only first 8 chars for security)
 	currentKeyPreview := fmt.Sprintf("%s...", hex.EncodeToString(s.encryptionKey[:4]))
 
@@ -256,7 +256,7 @@ func (s *ServiceE) GetStatus(c echo.Context) error {
 	return response.Success(c, resp, "Encryption service status")
 }
 
-func (s *ServiceE) RotateKey(c echo.Context) error {
+func (s *EncryptionService) RotateKey(c echo.Context) error {
 	var req KeyRotateRequest
 	if err := c.Bind(&req); err != nil {
 		return response.BadRequest(c, "Invalid request body")
@@ -293,7 +293,7 @@ func (s *ServiceE) RotateKey(c echo.Context) error {
 }
 
 // Middleware for automatic request/response encryption
-func (s *ServiceE) EncryptionMiddleware() echo.MiddlewareFunc {
+func (s *EncryptionService) EncryptionMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Skip encryption for encryption service endpoints
@@ -319,7 +319,7 @@ func (s *ServiceE) EncryptionMiddleware() echo.MiddlewareFunc {
 }
 
 // Helper function to encrypt JSON data
-func (s *ServiceE) EncryptJSON(data interface{}) (string, error) {
+func (s *EncryptionService) EncryptJSON(data interface{}) (string, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON: %v", err)
@@ -329,7 +329,7 @@ func (s *ServiceE) EncryptJSON(data interface{}) (string, error) {
 }
 
 // Helper function to decrypt to JSON
-func (s *ServiceE) DecryptJSON(encryptedData string, target interface{}) error {
+func (s *EncryptionService) DecryptJSON(encryptedData string, target interface{}) error {
 	decrypted, err := s.decrypt(encryptedData)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt: %v", err)
@@ -340,11 +340,11 @@ func (s *ServiceE) DecryptJSON(encryptedData string, target interface{}) error {
 
 // Auto-registration function - called when package is imported
 func init() {
-	registry.RegisterService("service_e", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+	registry.RegisterService("encryption_service", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
 		encryptionConfig := map[string]interface{}{
 			"algorithm": config.Encryption.Algorithm,
 			"key":       config.Encryption.Key,
 		}
-		return NewServiceE(config.Encryption.Enabled, encryptionConfig)
+		return NewEncryptionService(config.Encryption.Enabled, encryptionConfig)
 	})
 }

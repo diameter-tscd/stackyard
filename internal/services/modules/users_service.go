@@ -12,19 +12,19 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type ServiceA struct {
+type UsersService struct {
 	enabled bool
 }
 
-func NewServiceA(enabled bool) *ServiceA {
-	return &ServiceA{enabled: enabled}
+func NewUsersService(enabled bool) *UsersService {
+	return &UsersService{enabled: enabled}
 }
 
-func (s *ServiceA) Name() string        { return "Service A (Users)" }
-func (s *ServiceA) Enabled() bool       { return s.enabled }
-func (s *ServiceA) Endpoints() []string { return []string{"/users", "/users/:id"} }
+func (s *UsersService) Name() string        { return "Users Service" }
+func (s *UsersService) Enabled() bool       { return s.enabled }
+func (s *UsersService) Endpoints() []string { return []string{"/users", "/users/:id"} }
 
-func (s *ServiceA) RegisterRoutes(g *echo.Group) {
+func (s *UsersService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/users")
 
 	// List users with pagination
@@ -68,7 +68,7 @@ type UpdateUserRequest struct {
 
 // Handlers
 
-func (s *ServiceA) GetUsers(c echo.Context) error {
+func (s *UsersService) GetUsers(c echo.Context) error {
 	// Parse pagination from query
 	var pagination response.PaginationRequest
 	if err := c.Bind(&pagination); err != nil {
@@ -93,7 +93,7 @@ func (s *ServiceA) GetUsers(c echo.Context) error {
 	return response.SuccessWithMeta(c, users, meta, "Users retrieved successfully")
 }
 
-func (s *ServiceA) GetUser(c echo.Context) error {
+func (s *UsersService) GetUser(c echo.Context) error {
 	id := c.Param("id")
 
 	// Mock data - in real app, fetch from database
@@ -113,7 +113,7 @@ func (s *ServiceA) GetUser(c echo.Context) error {
 	return response.Success(c, user, "User retrieved successfully")
 }
 
-func (s *ServiceA) CreateUser(c echo.Context) error {
+func (s *UsersService) CreateUser(c echo.Context) error {
 	var req CreateUserRequest
 
 	// Bind and validate
@@ -136,7 +136,7 @@ func (s *ServiceA) CreateUser(c echo.Context) error {
 	return response.Created(c, user, "User created successfully")
 }
 
-func (s *ServiceA) UpdateUser(c echo.Context) error {
+func (s *UsersService) UpdateUser(c echo.Context) error {
 	id := c.Param("id")
 
 	var req UpdateUserRequest
@@ -161,7 +161,7 @@ func (s *ServiceA) UpdateUser(c echo.Context) error {
 	return response.Success(c, user, "User updated successfully")
 }
 
-func (s *ServiceA) DeleteUser(c echo.Context) error {
+func (s *UsersService) DeleteUser(c echo.Context) error {
 	id := c.Param("id")
 
 	// Simulate not found
@@ -176,7 +176,7 @@ func (s *ServiceA) DeleteUser(c echo.Context) error {
 
 // Auto-registration function - called when package is imported
 func init() {
-	registry.RegisterService("service_a", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
-		return NewServiceA(config.Services.IsEnabled("service_a"))
+	registry.RegisterService("users_service", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		return NewUsersService(config.Services.IsEnabled("users_service"))
 	})
 }

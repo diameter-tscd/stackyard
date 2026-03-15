@@ -5,10 +5,10 @@ import (
 	"strconv"
 
 	"stackyard/config"
-	"stackyard/pkg/registry"
 	"stackyard/pkg/infrastructure"
 	"stackyard/pkg/interfaces"
 	"stackyard/pkg/logger"
+	"stackyard/pkg/registry"
 	"stackyard/pkg/response"
 
 	"github.com/labstack/echo/v4"
@@ -22,36 +22,36 @@ type Task struct {
 	Completed   bool   `json:"completed"`
 }
 
-type ServiceD struct {
+type TasksService struct {
 	db      *infrastructure.PostgresManager
 	logger  *logger.Logger
 	enabled bool
 }
 
-func NewServiceD(db *infrastructure.PostgresManager, enabled bool, logger *logger.Logger) *ServiceD {
+func NewTasksService(db *infrastructure.PostgresManager, enabled bool, logger *logger.Logger) *TasksService {
 	if enabled && db != nil && db.ORM != nil {
 		// Auto-migrate the schema
 		if err := db.ORM.AutoMigrate(&Task{}); err != nil {
 			logger.Error("Error migrating Task model", err)
 		}
 	}
-	return &ServiceD{
+	return &TasksService{
 		db:      db,
 		logger:  logger,
 		enabled: enabled,
 	}
 }
 
-func (s *ServiceD) Name() string { return "Service D (Tasks - GORM)" }
+func (s *TasksService) Name() string { return "Tasks Service" }
 
-func (s *ServiceD) Enabled() bool {
+func (s *TasksService) Enabled() bool {
 	// Service is enabled only if configured AND DB is available
 	return s.enabled && s.db != nil && s.db.ORM != nil
 }
 
-func (s *ServiceD) Endpoints() []string { return []string{"/tasks"} }
+func (s *TasksService) Endpoints() []string { return []string{"/tasks"} }
 
-func (s *ServiceD) RegisterRoutes(g *echo.Group) {
+func (s *TasksService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/tasks")
 	sub.GET("", s.listTasks)
 	sub.POST("", s.createTask)
@@ -59,7 +59,7 @@ func (s *ServiceD) RegisterRoutes(g *echo.Group) {
 	sub.DELETE("/:id", s.deleteTask)
 }
 
-func (s *ServiceD) listTasks(c echo.Context) error {
+func (s *TasksService) listTasks(c echo.Context) error {
 	var tasks []Task
 
 	// Use async GORM operation to avoid blocking main thread
@@ -74,7 +74,7 @@ func (s *ServiceD) listTasks(c echo.Context) error {
 	return response.Success(c, tasks)
 }
 
-func (s *ServiceD) createTask(c echo.Context) error {
+func (s *TasksService) createTask(c echo.Context) error {
 	task := new(Task)
 	if err := c.Bind(task); err != nil {
 		return response.BadRequest(c, "Invalid input")
@@ -92,7 +92,7 @@ func (s *ServiceD) createTask(c echo.Context) error {
 	return response.Created(c, task)
 }
 
-func (s *ServiceD) updateTask(c echo.Context) error {
+func (s *TasksService) updateTask(c echo.Context) error {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var task Task
 
@@ -117,7 +117,7 @@ func (s *ServiceD) updateTask(c echo.Context) error {
 	return response.Success(c, task)
 }
 
-func (s *ServiceD) deleteTask(c echo.Context) error {
+func (s *TasksService) deleteTask(c echo.Context) error {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var task Task
 
@@ -135,8 +135,7 @@ func (s *ServiceD) deleteTask(c echo.Context) error {
 
 // Auto-registration function - called when package is imported
 func init() {
-	registry.RegisterService("service_d", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
-		logger.Debug("Service INIT LOADED")
-		return NewServiceD(deps.PostgresManager, config.Services.IsEnabled("service_d"), logger)
+	registry.RegisterService("tasks_service", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		return NewTasksService(deps.PostgresManager, config.Services.IsEnabled("tasks_service"), logger)
 	})
 }

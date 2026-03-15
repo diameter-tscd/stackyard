@@ -27,31 +27,31 @@ type Product struct {
 
 // ServiceG demonstrates using multiple MongoDB connections with NoSQL operations
 // This service shows how to work with different MongoDB databases dynamically
-type ServiceG struct {
+type MongoDBService struct {
 	enabled                bool
 	mongoConnectionManager *infrastructure.MongoConnectionManager
 	logger                 *logger.Logger
 }
 
-func NewServiceG(
+func NewMongoDBService(
 	mongoConnectionManager *infrastructure.MongoConnectionManager,
 	enabled bool,
 	logger *logger.Logger,
-) *ServiceG {
-	return &ServiceG{
+) *MongoDBService {
+	return &MongoDBService{
 		enabled:                enabled,
 		mongoConnectionManager: mongoConnectionManager,
 		logger:                 logger,
 	}
 }
 
-func (s *ServiceG) Name() string  { return "Service G (MongoDB Products)" }
-func (s *ServiceG) Enabled() bool { return s.enabled }
-func (s *ServiceG) Endpoints() []string {
+func (s *MongoDBService) Name() string  { return "MongoDB Service" }
+func (s *MongoDBService) Enabled() bool { return s.enabled }
+func (s *MongoDBService) Endpoints() []string {
 	return []string{"/products/{tenant}", "/products/{tenant}/{id}"}
 }
 
-func (s *ServiceG) RegisterRoutes(g *echo.Group) {
+func (s *MongoDBService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/products")
 
 	// Routes with tenant parameter for database selection
@@ -65,7 +65,7 @@ func (s *ServiceG) RegisterRoutes(g *echo.Group) {
 }
 
 // listProductsByTenant lists products from a specific tenant database
-func (s *ServiceG) listProductsByTenant(c echo.Context) error {
+func (s *MongoDBService) listProductsByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 
 	// Get the database connection for this tenant
@@ -93,7 +93,7 @@ func (s *ServiceG) listProductsByTenant(c echo.Context) error {
 }
 
 // createProduct creates a new product in the specified tenant database
-func (s *ServiceG) createProduct(c echo.Context) error {
+func (s *MongoDBService) createProduct(c echo.Context) error {
 	tenant := c.Param("tenant")
 
 	// Get the database connection for this tenant
@@ -143,7 +143,7 @@ func (s *ServiceG) createProduct(c echo.Context) error {
 }
 
 // getProductByTenant retrieves a specific product from a tenant database
-func (s *ServiceG) getProductByTenant(c echo.Context) error {
+func (s *MongoDBService) getProductByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 	id := c.Param("id")
 
@@ -173,7 +173,7 @@ func (s *ServiceG) getProductByTenant(c echo.Context) error {
 }
 
 // updateProduct updates a product in the specified tenant database
-func (s *ServiceG) updateProduct(c echo.Context) error {
+func (s *MongoDBService) updateProduct(c echo.Context) error {
 	tenant := c.Param("tenant")
 	id := c.Param("id")
 
@@ -220,7 +220,7 @@ func (s *ServiceG) updateProduct(c echo.Context) error {
 }
 
 // deleteProduct deletes a product from the specified tenant database
-func (s *ServiceG) deleteProduct(c echo.Context) error {
+func (s *MongoDBService) deleteProduct(c echo.Context) error {
 	tenant := c.Param("tenant")
 	id := c.Param("id")
 
@@ -251,7 +251,7 @@ func (s *ServiceG) deleteProduct(c echo.Context) error {
 }
 
 // searchProducts performs advanced search on products
-func (s *ServiceG) searchProducts(c echo.Context) error {
+func (s *MongoDBService) searchProducts(c echo.Context) error {
 	tenant := c.Param("tenant")
 
 	// Get the database connection for this tenant
@@ -323,7 +323,7 @@ func (s *ServiceG) searchProducts(c echo.Context) error {
 }
 
 // getProductAnalytics provides analytics for products in a tenant
-func (s *ServiceG) getProductAnalytics(c echo.Context) error {
+func (s *MongoDBService) getProductAnalytics(c echo.Context) error {
 	tenant := c.Param("tenant")
 
 	// Get the database connection for this tenant
@@ -381,14 +381,14 @@ func (s *ServiceG) getProductAnalytics(c echo.Context) error {
 
 // Auto-registration function - called when package is imported
 func init() {
-	registry.RegisterService("service_g", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
-		if !config.Services.IsEnabled("service_g") {
+	registry.RegisterService("mongodb_service", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
+		if !config.Services.IsEnabled("mongodb_service") {
 			return nil
 		}
 		if deps == nil || deps.MongoConnectionManager == nil {
-			logger.Warn("MongoDB connections not available, skipping Service G")
+			logger.Warn("MongoDB connections not available, skipping MongoDB Service")
 			return nil
 		}
-		return NewServiceG(deps.MongoConnectionManager, true, logger)
+		return NewMongoDBService(deps.MongoConnectionManager, true, logger)
 	})
 }
