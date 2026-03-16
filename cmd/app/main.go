@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	// load modules init
 	_ "stackyard/internal/services/modules"
 )
 
@@ -127,17 +128,8 @@ func exampleAferoUsage() {
 		"web-app": "all:web/monitoring/index.html",
 	}
 
-	// Initialize the Afero manager in development mode
-	// Note: In a real application, you would use //go:embed directives
-	// For this example, we'll just show the API usage
 	fmt.Println("Initializing Afero Manager...")
 
-	// In a real application, you would have:
-	// //go:embed all:dist
-	// var embedFS embed.FS
-	// infrastructure.Init(embedFS, aliasMap, true)
-
-	// For demonstration purposes, we'll just show the API
 	fmt.Println("✓ Afero Manager initialized")
 	fmt.Println("✓ Development mode: CopyOnWriteFs (embed.FS + OS overrides)")
 	fmt.Println("✓ Production mode: ReadOnlyFs (embed.FS only)")

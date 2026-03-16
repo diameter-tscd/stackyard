@@ -756,14 +756,20 @@ Components are shut down in reverse order to ensure dependencies are handled cor
 
 The project includes comprehensive build scripts for automated compilation, backup management, and deployment across multiple platforms.
 
+#### 9.1.1 Go Build Script (`scripts/build.go`)
+
+**Version**: Go-based build system (replaces shell scripts)
+**Purpose**: Cross-platform build automation with enhanced features
+
 **Features:**
-- **Cross-Platform Support**: Separate scripts for Unix/Linux/macOS (`scripts/build.sh`) and Windows (`scripts/build.bat`)
-- **Automatic Backup**: Creates timestamped backups of previous builds before deployment
-- **Archive Compression**: Compresses backups into ZIP files for efficient storage
+- **Cross-Platform Support**: Single Go script works on Unix/Linux/macOS and Windows
+- **Automatic Tool Installation**: Installs `goversioninfo` and `garble` if missing
+- **Interactive Prompts**: User choice for code obfuscation with configurable timeout
 - **Process Management**: Automatically stops running application instances
+- **Backup Management**: Creates timestamped backups with ZIP compression
 - **Asset Management**: Copies configuration files, databases, and web assets
-- **Clean Builds**: Optimized Go binary compilation
-- **Pure CMD Implementation**: Windows script uses only built-in CMD commands (no PowerShell dependency)
+- **Structured Logging**: Color-coded output with verbose mode support
+- **Graceful Shutdown**: Proper signal handling for clean termination
 
 **Build Process:**
 1. **Tool Installation**: Automatically checks and installs required tools (`goversioninfo`, `garble`)
@@ -771,15 +777,84 @@ The project includes comprehensive build scripts for automated compilation, back
 3. **Timestamp Generation**: Creates `YYYYMMDD_HHMMSS` format timestamps
 4. **Process Management**: Stops running application instances using `pgrep`/`pkill` (Unix) or `tasklist`/`taskkill` (Windows)
 5. **Backup Creation**: Moves old binaries, configs, databases, and web assets to timestamped directories
-6. **Archive Compression**: Compresses backup folders using `zip` (Unix) or `tar` (Windows)
+6. **Archive Compression**: Compresses backup folders using ZIP format
 7. **Build Execution**: Compiles Go application with `go build` or `garble build` based on user choice
 8. **Asset Copying**: Copies required files to build directory
+
+**Command Line Options:**
+```bash
+# Basic usage
+go run scripts/build.go
+
+# With verbose logging
+go run scripts/build.go -verbose
+
+# With custom timeout (seconds)
+go run scripts/build.go -timeout 15
+
+# Get help
+go run scripts/build.go --help
+```
+
+**Configuration Variables:**
+- `DIST_DIR`: Build output directory (default: `dist`)
+- `APP_NAME`: Application binary name
+- `MAIN_PATH`: Path to main Go file (default: `./cmd/app/main.go`)
+- `CONFIG_YML`: Configuration file name
+- `BANNER_TXT`: Banner file name
+- `DB_FILE`: Database file name
+- `WEB_DIR`: Web assets directory
 
 **Enhanced Features:**
 - **Code Obfuscation**: Optional `garble` build for production security
 - **Automatic Tool Management**: Installs required Go tools automatically
-- **Interactive Prompts**: User choice for obfuscation with 10-second timeout
-- **Cross-Platform Compatibility**: Native implementations for Unix/Linux/macOS and Windows
+- **Interactive Prompts**: User choice for obfuscation with configurable timeout
+- **Cross-Platform Compatibility**: Single Go binary works everywhere Go is supported
+- **Color-Coded Output**: Pastel color palette for better readability
+- **Structured Logging**: Different log levels with appropriate formatting
+- **Error Handling**: Comprehensive error handling with context
+- **Signal Handling**: Graceful shutdown on SIGINT/SIGTERM
+
+**Build Steps:**
+1. **Checking required tools** - Verifies `goversioninfo` and `garble` availability
+2. **Asking user about garble** - Interactive prompt for obfuscation choice
+3. **Stopping running process** - Kills any running application instances
+4. **Creating backup** - Moves existing files to timestamped backup directory
+5. **Archiving backup** - Compresses backup directory into ZIP file
+6. **Building application** - Compiles Go binary with appropriate flags
+7. **Copying assets** - Copies configuration, database, and web files
+
+**Output Example:**
+```
+   /\ 
+   (  )   stackyard Builder by diameter-tscd
+   \/ 
+----------------------------------------------------------------------
+[1/7] Checking required tools
+[2/7] Asking user about garble
+[3/7] Stopping running process
+[4/7] Creating backup
+[5/7] Archiving backup
+[6/7] Building application
+[7/7] Copying assets
+
+ SUCCESS! Build ready at: /path/to/project/dist
+```
+
+**Error Handling:**
+- **Tool Missing**: Automatically installs missing tools
+- **Process Kill Failures**: Logs warnings but continues
+- **Backup Failures**: Logs warnings but continues
+- **Build Failures**: Exits with error code
+- **Asset Copy Failures**: Logs warnings but continues
+
+**CI/CD Integration:**
+- **GitHub Actions**: Can be used in workflows with `go run scripts/build.go`
+- **Jenkins Pipeline**: Integrates with Go toolchain
+- **Docker Builds**: Can be used in multi-stage Docker builds
+- **Artifact Management**: Produces clean build artifacts
+
+#### 9.1.2 Legacy Shell Scripts
 
 **Unix/Linux/macOS Script (`scripts/build.sh`):**
 ```bash
