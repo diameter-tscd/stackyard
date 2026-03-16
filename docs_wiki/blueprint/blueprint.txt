@@ -904,8 +904,9 @@ The project includes comprehensive Docker containerization with multi-stage buil
 - **Ultra-Production Stage**: Distroless image for maximum security and minimal size
 
 **Build Scripts:**
-- **Unix/Linux/macOS**: `scripts/docker_build.sh`
+- **Unix/Linux/macOS**: `scripts/docker_build.sh` (Go-based wrapper)
 - **Windows**: `scripts/docker_build.bat`
+- **Go Implementation**: `scripts/docker/main.go` (cross-platform core)
 
 **Usage:**
 ```bash
@@ -917,6 +918,9 @@ The project includes comprehensive Docker containerization with multi-stage buil
 
 # Build specific target (prod for production only)
 ./scripts/docker_build.sh "my-app" "myregistry/myapp" "prod"
+
+# Direct Go execution
+go run scripts/docker/main.go "my-app" "myregistry/myapp" "prod"
 ```
 
 **Container Configuration:**
