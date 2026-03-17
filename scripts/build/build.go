@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// Configuration constants
-const (
+// Configuration variables
+var (
 	DIST_DIR   = "dist"
 	APP_NAME   = "stackyard"
 	MAIN_PATH  = "./cmd/app/main.go"
@@ -98,6 +98,75 @@ func (l *Logger) Success(msg string, args ...interface{}) {
 // NewLogger creates a new logger
 func NewLogger(verbose bool) *Logger {
 	return &Logger{verbose: verbose}
+}
+
+// checkPath checks the path folder and ensures we're in the project root
+func (ctx *BuildContext) checkPath(logger *Logger) error {
+	return ctx.ensureProjectRoot(logger)
+}
+
+// ensureProjectRoot finds the project root and changes to it if needed
+func (ctx *BuildContext) ensureProjectRoot(logger *Logger) error {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	logger.Info("Starting from: %s", currentDir)
+
+	// Find project root by looking for go.mod
+	projectRoot, err := findProjectRoot(currentDir)
+	if err != nil {
+		return fmt.Errorf("failed to find project root: %w", err)
+	}
+
+	if projectRoot != currentDir {
+		logger.Info("Changing to project root: %s", projectRoot)
+		if err := os.Chdir(projectRoot); err != nil {
+			return fmt.Errorf("failed to change directory to %s: %w", projectRoot, err)
+		}
+
+		// Update context with new working directory
+		ctx.ProjectDir = projectRoot
+		ctx.DistPath = filepath.Join(projectRoot, DIST_DIR)
+
+		logger.Success("Now in project root")
+	} else {
+		logger.Info("Already in project root")
+	}
+
+	// Ensure dist directory exists
+	if err := os.MkdirAll(ctx.DistPath, 0755); err != nil {
+		logger.Error("Failed to create dist directory: %v", err)
+		os.Exit(1)
+	}
+
+	return nil
+}
+
+// findProjectRoot searches up the directory tree for go.mod
+func findProjectRoot(startDir string) (string, error) {
+	current := startDir
+
+	for {
+		// Check if go.mod exists in current directory
+		goModPath := filepath.Join(current, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			return current, nil
+		}
+
+		// Move up one directory
+		parent := filepath.Dir(current)
+
+		// If we've reached the root directory, stop
+		if parent == current {
+			break
+		}
+
+		current = parent
+	}
+
+	return "", fmt.Errorf("go.mod not found in directory tree")
 }
 
 // checkRequiredTools checks if required tools are available
@@ -645,17 +714,12 @@ func main() {
 	_, cancel := context.WithCancel(context.Background())
 	setupSignalHandler(cancel)
 
-	// Ensure dist directory exists
-	if err := os.MkdirAll(ctx.DistPath, 0755); err != nil {
-		logger.Error("Failed to create dist directory: %v", err)
-		os.Exit(1)
-	}
-
 	// Execute build steps
 	steps := []struct {
 		name string
 		fn   func(*Logger) error
 	}{
+		{"Checking Project Path", ctx.checkPath},
 		{"Checking required tools", ctx.checkRequiredTools},
 		{"Asking user about garble", ctx.askUserAboutGarble},
 		{"Stopping running process", ctx.stopRunningProcess},
