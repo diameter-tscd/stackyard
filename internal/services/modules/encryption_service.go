@@ -62,8 +62,10 @@ func NewEncryptionService(enabled bool, config map[string]interface{}) *Encrypti
 	}
 }
 
-func (s *EncryptionService) Name() string  { return "Encryption Service" }
-func (s *EncryptionService) Enabled() bool { return s.enabled }
+func (s *EncryptionService) Name() string     { return "Encryption Service" }
+func (s *EncryptionService) WireName() string { return "encryption-service" }
+func (s *EncryptionService) Enabled() bool    { return s.enabled }
+func (s *EncryptionService) Get() interface{} { return s }
 func (s *EncryptionService) Endpoints() []string {
 	return []string{"/encryption/encrypt", "/encryption/decrypt", "/encryption/status", "/encryption/key-rotate"}
 }

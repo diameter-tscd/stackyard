@@ -42,12 +42,15 @@ func NewTasksService(db *infrastructure.PostgresManager, enabled bool, logger *l
 	}
 }
 
-func (s *TasksService) Name() string { return "Tasks Service" }
+func (s *TasksService) Name() string     { return "Tasks Service" }
+func (s *TasksService) WireName() string { return "tasks-service" }
 
 func (s *TasksService) Enabled() bool {
 	// Service is enabled only if configured AND DB is available
 	return s.enabled && s.db != nil && s.db.ORM != nil
 }
+
+func (s *TasksService) Get() interface{} { return s }
 
 func (s *TasksService) Endpoints() []string { return []string{"/tasks"} }
 

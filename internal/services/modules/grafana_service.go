@@ -28,8 +28,10 @@ func NewGrafanaService(grafanaManager *infrastructure.GrafanaManager, enabled bo
 }
 
 func (s *GrafanaService) Name() string        { return "Grafana Service" }
+func (s *GrafanaService) WireName() string    { return "grafana-service" }
 func (s *GrafanaService) Enabled() bool       { return s.enabled && s.grafanaManager != nil }
 func (s *GrafanaService) Endpoints() []string { return []string{"/grafana"} }
+func (s *GrafanaService) Get() interface{}    { return s }
 
 func (s *GrafanaService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/grafana")

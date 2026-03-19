@@ -21,8 +21,10 @@ func NewUsersService(enabled bool) *UsersService {
 }
 
 func (s *UsersService) Name() string        { return "Users Service" }
+func (s *UsersService) WireName() string    { return "users-service" }
 func (s *UsersService) Enabled() bool       { return s.enabled }
 func (s *UsersService) Endpoints() []string { return []string{"/users", "/users/:id"} }
+func (s *UsersService) Get() interface{}    { return s }
 
 func (s *UsersService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/users")

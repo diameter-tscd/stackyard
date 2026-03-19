@@ -26,7 +26,9 @@ func NewCacheService(enabled bool) *CacheService {
 }
 
 func (s *CacheService) Name() string        { return "Cache Service" }
+func (s *CacheService) WireName() string    { return "cache-service" }
 func (s *CacheService) Enabled() bool       { return s.enabled }
+func (s *CacheService) Get() interface{}    { return s }
 func (s *CacheService) Endpoints() []string { return []string{"/cache"} }
 
 type CacheRequest struct {

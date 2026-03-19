@@ -57,11 +57,13 @@ func NewMultiTenantService(
 	}
 }
 
-func (s *MultiTenantService) Name() string  { return "Multi-Tenant Service" }
-func (s *MultiTenantService) Enabled() bool { return s.enabled }
+func (s *MultiTenantService) Name() string     { return "Multi-Tenant Service" }
+func (s *MultiTenantService) WireName() string { return "multitenant-service" }
+func (s *MultiTenantService) Enabled() bool    { return s.enabled }
 func (s *MultiTenantService) Endpoints() []string {
 	return []string{"/orders/{tenant}", "/orders/{tenant}/{id}"}
 }
+func (s *MultiTenantService) Get() interface{} { return s }
 
 func (s *MultiTenantService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/orders")

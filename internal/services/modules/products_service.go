@@ -19,8 +19,10 @@ func NewProductsService(enabled bool) *ProductsService {
 }
 
 func (s *ProductsService) Name() string        { return "Products Service" }
+func (s *ProductsService) WireName() string    { return "products-service" }
 func (s *ProductsService) Enabled() bool       { return s.enabled }
 func (s *ProductsService) Endpoints() []string { return []string{"/products"} }
+func (s *ProductsService) Get() interface{}    { return s }
 
 func (s *ProductsService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/products")

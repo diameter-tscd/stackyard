@@ -45,11 +45,13 @@ func NewMongoDBService(
 	}
 }
 
-func (s *MongoDBService) Name() string  { return "MongoDB Service" }
-func (s *MongoDBService) Enabled() bool { return s.enabled }
+func (s *MongoDBService) Name() string     { return "MongoDB Service" }
+func (s *MongoDBService) WireName() string { return "mongodb-service" }
+func (s *MongoDBService) Enabled() bool    { return s.enabled }
 func (s *MongoDBService) Endpoints() []string {
 	return []string{"/products/{tenant}", "/products/{tenant}/{id}"}
 }
+func (s *MongoDBService) Get() interface{} { return s }
 
 func (s *MongoDBService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/products")

@@ -119,8 +119,10 @@ func NewBroadcastService(enabled bool, logger *logger.Logger) *BroadcastService 
 	return service
 }
 
-func (s *BroadcastService) Name() string  { return "Broadcast Service" }
-func (s *BroadcastService) Enabled() bool { return s.enabled }
+func (s *BroadcastService) Name() string     { return "Broadcast Service" }
+func (s *BroadcastService) WireName() string { return "broadcast-service" }
+func (s *BroadcastService) Enabled() bool    { return s.enabled }
+func (s *BroadcastService) Get() interface{} { return s }
 func (s *BroadcastService) Endpoints() []string {
 	return []string{"/events/stream/{stream_id}", "/events/broadcast", "/events/streams"}
 }
