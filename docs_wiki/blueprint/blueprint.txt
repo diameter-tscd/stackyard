@@ -36,6 +36,7 @@ Client → Handler → Request Binding → Validation → Business Logic → Res
   - **modules/**: Individual service implementations
 - **pkg/**: Reusable packages (public)
   - **request/**: Request handling and validation
+  - **logger/**: Modular logging utilities with separated configuration
   - **response/**: Standardized API responses
   - **tui/**: Terminal User Interface
   - **infrastructure/**: External service integrations
@@ -51,6 +52,46 @@ Client → Handler → Request Binding → Validation → Business Logic → Res
 4. **Validate** → Business Logic (success) or Error (failure)
 5. **Logic** → response.Success or response.Error
 6. **Response** → JSON Response to Client
+
+### 2.4 Step-by-Step Application Execution
+
+The application follows a structured step-by-step execution pattern inspired by the build system:
+
+**Execution Flow:**
+1. **Configuration Loading** → Load and validate application configuration
+2. **Banner Display** → Show application banner and version
+3. **Port Validation** → Check service and monitoring port availability
+4. **Logger Initialization** → Initialize modular logging system
+5. **Infrastructure Setup** → Initialize async infrastructure components
+6. **Service Registration** → Register and initialize enabled services
+7. **Server Startup** → Start HTTP servers and begin serving requests
+
+**Key Features:**
+- **Modular Steps**: Each initialization phase is a separate, testable function
+- **Error Handling**: Graceful failure with detailed error messages at each step
+- **Progress Feedback**: Clear step-by-step progress indication
+- **Configuration-Driven**: All steps respect configuration settings (TUI enable/disable)
+- **Graceful Shutdown**: Proper cleanup of all resources on termination
+
+### 2.4 Step-by-Step Application Execution
+
+The application follows a structured step-by-step execution pattern inspired by the build system:
+
+**Execution Flow:**
+1. **Configuration Loading** → Load and validate application configuration
+2. **Banner Display** → Show application banner and version
+3. **Port Validation** → Check service and monitoring port availability
+4. **Logger Initialization** → Initialize modular logging system
+5. **Infrastructure Setup** → Initialize async infrastructure components
+6. **Service Registration** → Register and initialize enabled services
+7. **Server Startup** → Start HTTP servers and begin serving requests
+
+**Key Features:**
+- **Modular Steps**: Each initialization phase is a separate, testable function
+- **Error Handling**: Graceful failure with detailed error messages at each step
+- **Progress Feedback**: Clear step-by-step progress indication
+- **Configuration-Driven**: All steps respect configuration settings (TUI enable/disable)
+- **Graceful Shutdown**: Proper cleanup of all resources on termination
 
 ## 3. API STRUCTURE
 
@@ -992,6 +1033,110 @@ scripts\change_package.bat github.com/new-org/new-project
 - **Test After**: Run `go mod tidy` and test compilation after changes
 - **Backup Files**: Remove `.bak` files after verifying changes (Unix/Linux/macOS)
 - **IDE Restart**: May need to restart IDE/editor after module name changes
+
+### 2.5 Generic Stepping Utility
+
+**Purpose:** Provides a reusable, generic stepping pattern for step-by-step initialization across the entire application.
+
+**Location:** `pkg/utils/stepper.go`
+
+**Key Features:**
+- **Generic Design**: Works with any context type through `StepContext` interface
+- **Type Safety**: Provides type-safe wrapper functions for specific use cases
+- **Consistent Logging**: Uniform progress tracking and error handling
+- **Reusable Pattern**: Can be used by any component requiring step-by-step initialization
+- **Error Handling**: Each step can fail independently with clear error messages
+
+**Core Types:**
+```go
+// Generic context interface
+type StepContext interface{}
+
+// Step function type
+type StepFunc func(StepContext) error
+
+// Step definition
+type Step struct {
+    Name string
+    Fn   StepFunc
+}
+
+// Generic execution function
+func ExecuteSteps(ctx StepContext, steps []Step) error
+```
+
+**Type-Safe Wrappers:**
+```go
+// For application steps
+func ExecuteAppSteps(ctx interface{}, steps interface{}) error
+
+// For server steps  
+func ExecuteServerSteps(ctx interface{}, steps interface{}) error
+```
+
+**Usage Examples:**
+
+**Application Startup (cmd/app/main.go):**
+```go
+type AppContext struct {
+    Config      *config.Config
+    Logger      *logger.Logger
+    Broadcaster *monitoring.LogBroadcaster
+}
+
+type AppStep struct {
+    Name string
+    Fn   func(*AppContext) error
+}
+
+steps := []AppStep{
+    {"Loading configuration", loadConfigStep},
+    {"Validating configuration", validateConfigStep},
+    {"Starting application", startAppStep},
+}
+
+if err := utils.ExecuteAppSteps(ctx, steps); err != nil {
+    return err
+}
+```
+
+**Server Startup (internal/server/server.go):**
+```go
+type ServerContext struct {
+    Server           *Server
+    Config           *config.Config
+    Logger           *logger.Logger
+    Dependencies     *registry.Dependencies
+    InfraInitManager *infrastructure.InfraInitManager
+}
+
+type ServerStep struct {
+    Name string
+    Fn   func(*ServerContext) error
+}
+
+steps := []ServerStep{
+    {"Initializing Infrastructure", initInfrastructureStep},
+    {"Creating Dependencies", createDependenciesStep},
+    {"Starting HTTP Server", startHTTPServerStep},
+}
+
+if err := utils.ExecuteServerSteps(ctx, steps); err != nil {
+    return err
+}
+```
+
+**Benefits:**
+- **Code Reusability**: Same pattern used across different components
+- **Consistency**: Uniform initialization approach throughout the application
+- **Maintainability**: Single implementation to maintain and improve
+- **Debugging**: Clear step-by-step progress tracking during startup
+- **Error Isolation**: Each step fails independently with specific error messages
+
+**Integration Points:**
+- **Application Startup**: `cmd/app/main.go` uses `ExecuteAppSteps`
+- **Server Startup**: `internal/server/server.go` uses `ExecuteServerSteps`
+- **Future Extensions**: Any component can use `ExecuteSteps` directly
 
 ### 8.2 Infrastructure Integration
 
