@@ -1,0 +1,280 @@
+swagger: "2.0"
+info:
+  description: "Stackyard API Documentation"
+  version: "1.0.0"
+  title: "Stackyard API"
+  contact:
+    email: "admin@stackyard.com"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "localhost:8080"
+basePath: "/api/v1"
+tags:
+  - name: "users"
+    description: "User management"
+  - name: "products"
+    description: "Product management"
+schemes:
+  - "https"
+  - "http"
+paths:
+  /users:
+    get:
+      tags:
+        - "users"
+      summary: "List users with pagination"
+      description: "Get a paginated list of users"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "page"
+          in: "query"
+          description: "Page number"
+          type: "integer"
+          default: 1
+        - name: "per_page"
+          in: "query"
+          description: "Items per page"
+          type: "integer"
+          default: 10
+      responses:
+        200:
+          description: "Success"
+          schema:
+            type: "object"
+            properties:
+              success:
+                type: "boolean"
+              status:
+                type: "integer"
+              message:
+                type: "string"
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/User"
+              meta:
+                $ref: "#/definitions/Meta"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Response"
+    post:
+      tags:
+        - "users"
+      summary: "Create user"
+      description: "Create a new user"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/CreateUserRequest"
+      responses:
+        201:
+          description: "Created"
+          schema:
+            type: "object"
+            properties:
+              success:
+                type: "boolean"
+              status:
+                type: "integer"
+              message:
+                type: "string"
+              data:
+                $ref: "#/definitions/User"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Response"
+        422:
+          description: "Validation error"
+          schema:
+            $ref: "#/definitions/Response"
+  /users/{id}:
+    get:
+      tags:
+        - "users"
+      summary: "Get single user"
+      description: "Get a specific user by ID"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          type: "string"
+      responses:
+        200:
+          description: "Success"
+          schema:
+            type: "object"
+            properties:
+              success:
+                type: "boolean"
+              status:
+                type: "integer"
+              message:
+                type: "string"
+              data:
+                $ref: "#/definitions/User"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Response"
+    put:
+      tags:
+        - "users"
+      summary: "Update user"
+      description: "Update an existing user"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          type: "string"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateUserRequest"
+      responses:
+        200:
+          description: "Success"
+          schema:
+            type: "object"
+            properties:
+              success:
+                type: "boolean"
+              status:
+                type: "integer"
+              message:
+                type: "string"
+              data:
+                $ref: "#/definitions/User"
+        400:
+          description: "Bad request"
+          schema:
+            $ref: "#/definitions/Response"
+        422:
+          description: "Validation error"
+          schema:
+            $ref: "#/definitions/Response"
+    delete:
+      tags:
+        - "users"
+      summary: "Delete user"
+      description: "Delete a user by ID"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          type: "string"
+      responses:
+        204:
+          description: "No content"
+        404:
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Response"
+  /products:
+    get:
+      tags:
+        - "products"
+      summary: "Get products"
+      description: "Get a list of products"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "Success"
+          schema:
+            $ref: "#/definitions/Response"
+definitions:
+  User:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+      username:
+        type: "string"
+      email:
+        type: "string"
+      status:
+        type: "string"
+      created_at:
+        type: "integer"
+  CreateUserRequest:
+    type: "object"
+    required:
+      - "username"
+      - "email"
+      - "full_name"
+    properties:
+      username:
+        type: "string"
+      email:
+        type: "string"
+      full_name:
+        type: "string"
+  UpdateUserRequest:
+    type: "object"
+    properties:
+      username:
+        type: "string"
+      email:
+        type: "string"
+      full_name:
+        type: "string"
+      status:
+        type: "string"
+        enum:
+          - "active"
+          - "inactive"
+          - "suspended"
+  Response:
+    type: "object"
+    properties:
+      success:
+        type: "boolean"
+      status:
+        type: "integer"
+      message:
+        type: "string"
+      data:
+        type: "object"
+      error:
+        type: "object"
+      meta:
+        $ref: "#/definitions/Meta"
+      timestamp:
+        type: "integer"
+      datetime:
+        type: "string"
+      correlation_id:
+        type: "string"
+  Meta:
+    type: "object"
+    properties:
+      page:
+        type: "integer"
+      per_page:
+        type: "integer"
+      total:
+        type: "integer"
+      total_pages:
+        type: "integer"

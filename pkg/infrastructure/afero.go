@@ -306,6 +306,11 @@ func Exists(alias string) bool {
 		return false
 	}
 
+	// Handle "all:" prefix if present
+	if filepath.HasPrefix(physicalPath, "all:") {
+		physicalPath = physicalPath[4:] // Remove "all:" prefix
+	}
+
 	// Check if file exists in filesystem
 	_, err := instance.fs.Stat(physicalPath)
 	return err == nil
@@ -357,4 +362,11 @@ func GetFileSystem() afero.Fs {
 	defer instance.mu.RUnlock()
 
 	return instance.fs
+}
+
+// ResetForTesting resets the singleton for testing purposes
+// This function should only be used in tests
+func ResetForTesting() {
+	instance = nil
+	once = sync.Once{}
 }

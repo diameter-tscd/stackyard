@@ -29,19 +29,68 @@ func (s *UsersService) Get() interface{}    { return s }
 func (s *UsersService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/users")
 
-	// List users with pagination
+	// GetUsers godoc
+	// @Summary List users with pagination
+	// @Description Get a paginated list of users
+	// @Tags users
+	// @Accept json
+	// @Produce json
+	// @Param page query int false "Page number" default(1)
+	// @Param per_page query int false "Items per page" default(10)
+	// @Success 200 {object} response.Response{data=[]User} "Success"
+	// @Failure 400 {object} response.Response "Bad request"
+	// @Router /users [get]
 	sub.GET("", s.GetUsers)
 
-	// Get single user
+	// GetUser godoc
+	// @Summary Get single user
+	// @Description Get a specific user by ID
+	// @Tags users
+	// @Accept json
+	// @Produce json
+	// @Param id path string true "User ID"
+	// @Success 200 {object} response.Response{data=User} "Success"
+	// @Failure 404 {object} response.Response "Not found"
+	// @Router /users/{id} [get]
 	sub.GET("/:id", s.GetUser)
 
-	// Create user
+	// CreateUser godoc
+	// @Summary Create user
+	// @Description Create a new user
+	// @Tags users
+	// @Accept json
+	// @Produce json
+	// @Param request body CreateUserRequest true "Create user request"
+	// @Success 201 {object} response.Response{data=User} "Created"
+	// @Failure 400 {object} response.Response "Bad request"
+	// @Failure 422 {object} response.Response "Validation error"
+	// @Router /users [post]
 	sub.POST("", s.CreateUser)
 
-	// Update user
+	// UpdateUser godoc
+	// @Summary Update user
+	// @Description Update an existing user
+	// @Tags users
+	// @Accept json
+	// @Produce json
+	// @Param id path string true "User ID"
+	// @Param request body UpdateUserRequest true "Update user request"
+	// @Success 200 {object} response.Response{data=User} "Success"
+	// @Failure 400 {object} response.Response "Bad request"
+	// @Failure 422 {object} response.Response "Validation error"
+	// @Router /users/{id} [put]
 	sub.PUT("/:id", s.UpdateUser)
 
-	// Delete user
+	// DeleteUser godoc
+	// @Summary Delete user
+	// @Description Delete a user by ID
+	// @Tags users
+	// @Accept json
+	// @Produce json
+	// @Param id path string true "User ID"
+	// @Success 204 "No content"
+	// @Failure 404 {object} response.Response "Not found"
+	// @Router /users/{id} [delete]
 	sub.DELETE("/:id", s.DeleteUser)
 }
 

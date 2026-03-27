@@ -1862,3 +1862,1143 @@ cat config.yaml | grep -A 10 "services:"
 ### 14.9 Commercial Support
 
 While the software is provided under Apache License 2.0, commercial support, consulting, and custom development services may be available through the project maintainer.
+
+## 15. TESTING INFRASTRUCTURE
+
+### 15.1 Test Helpers Package
+
+**Location:** `pkg/testing/`
+
+The project includes a comprehensive testing infrastructure package providing reusable test utilities and mock implementations.
+
+**Test Helpers (`pkg/testing/helpers.go`):**
+- `NewTestContext()` - Creates echo.Context for unit testing with request body
+- `NewTestContextWithQuery()` - Creates test context with query parameters
+- `NewTestContextWithParams()` - Creates test context with path parameters
+- `ParseResponse()` - Parses HTTP response body into struct
+- `AssertStatus()` - Asserts HTTP status code
+- `AssertJSON()` - Asserts JSON response fields
+- `NewTestEcho()` - Creates Echo instance for testing routes
+
+**Mock Implementations (`pkg/testing/mocks.go`):**
+- `MockService` - Service interface mock for testing
+- `MockLogger` - Logger mock with log entry capture
+- `MockRedisManager` - Redis operations mock with in-memory storage
+- `MockPostgresManager` - PostgreSQL operations mock
+- `MockMongoManager` - MongoDB operations mock
+- `MockKafkaManager` - Kafka messaging mock with message capture
+- `MockCronManager` - Cron job scheduling mock
+- `MockFileReader` - File system operations mock
+- `MockConfig` - Configuration mock with service toggles
+- `TestSuite` - Complete test suite with all mocks initialized
+
+**Usage Example:**
+```go
+func TestUserService(t *testing.T) {
+    suite := testhelpers.NewTestSuite()
+    defer suite.Cleanup()
+    
+    service := modules.NewUsersService(true)
+    c, rec := testhelpers.NewTestContext(http.MethodGet, "/users", nil)
+    
+    err := service.GetUsers(c)
+    assert.NoError(t, err)
+    testhelpers.AssertStatus(t, rec, http.StatusOK)
+}
+```
+
+### 15.2 Test File Organization
+
+Service test files are located in `tests/services/` directory, separated from service implementations:
+
+```
+tests/
+└── services/
+    ├── users_service_test.go
+    └── products_service_test.go
+```
+
+**Test Coverage:**
+- Unit tests for all service methods
+- Validation testing for request inputs
+- Error handling verification
+- Benchmark tests for performance monitoring
+- Struct serialization/deserialization tests
+
+### 15.3 Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run service tests only
+go test ./tests/services/... -v
+
+# Run with coverage
+go test ./... -cover
+
+# Run benchmarks
+go test -bench=. ./tests/services/
+```
+
+## 16. API DOCUMENTATION
+
+### 16.1 Swagger Integration
+
+**Configuration:** `docs/swagger.yaml`
+
+The project includes OpenAPI 2.0 (Swagger) documentation with annotations on service handlers.
+
+**Annotated Endpoints:**
+
+**Users Service:**
+- `GET /api/v1/users` - List users with pagination
+- `GET /api/v1/users/{id}` - Get user by ID
+- `POST /api/v1/users` - Create user
+- `PUT /api/v1/users/{id}` - Update user
+- `DELETE /api/v1/users/{id}` - Delete user
+
+**Products Service:**
+- `GET /api/v1/products` - Get products list
+
+**Swagger Annotations Format:**
+```go
+// GetUsers godoc
+// @Summary List users with pagination
+// @Description Get a paginated list of users
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param per_page query int false "Items per page" default(10)
+// @Success 200 {object} response.Response{data=[]User} "Success"
+// @Failure 400 {object} response.Response "Bad request"
+// @Router /users [get]
+func (s *UsersService) GetUsers(c echo.Context) error {
+    // Implementation
+}
+```
+
+### 16.2 Documentation Definitions
+
+The swagger.yaml includes definitions for:
+- `User` - User model with all fields
+- `CreateUserRequest` - User creation request schema
+- `UpdateUserRequest` - User update request schema
+- `Response` - Standard API response wrapper
+- `Meta` - Pagination metadata
+
+## 17. SECURITY ENHANCEMENTS
+
+### 17.1 Rate Limiting Middleware
+
+**Location:** `internal/middleware/ratelimit.go`
+
+Provides configurable request rate limiting per IP or user.
+
+**Features:**
+- Token bucket algorithm implementation
+- Configurable request limits and time windows
+- Per-IP or per-user rate limiting
+- Automatic cleanup of expired entries
+- Rate limit headers in responses (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`)
+
+**Configuration:**
+```go
+// Default: 60 requests per minute per IP
+middleware.RateLimit()
+
+// Custom configuration
+middleware.RateLimitWithConfig(100, time.Minute)
+
+// Per-user rate limiting
+middleware.RateLimitPerUser(100, time.Minute)
+```
+
+**Response on Limit Exceeded:**
+```json
+{
+  "success": false,
+  "status": 429,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Rate limit exceeded. Please try again later.",
+    "details": {
+      "retry_after": 1672531260
+    }
+  }
+}
+```
+
+### 17.2 CORS Middleware
+
+**Location:** `internal/middleware/cors.go`
+
+Cross-Origin Resource Sharing support with wildcard subdomain matching.
+
+**Features:**
+- Configurable allowed origins, methods, and headers
+- Wildcard subdomain support (e.g., `*.example.com`)
+- Preflight request handling
+- Credentials support
+- Max-Age caching
+
+**Configuration:**
+```go
+// Allow all origins
+middleware.CORSAllowAll()
+
+// Specific origins
+middleware.CORSWithConfig([]string{"https://example.com", "https://app.example.com"})
+
+// Full configuration
+middleware.CORS(middleware.CORSConfig{
+    AllowOrigins:     []string{"https://example.com"},
+    AllowMethods:     []string{http.MethodGet, http.MethodPost},
+    AllowHeaders:     []string{echo.HeaderContentType, echo.HeaderAuthorization},
+    AllowCredentials: true,
+    MaxAge:           86400,
+})
+```
+
+### 17.3 JWT Authentication Middleware
+
+**Location:** `internal/middleware/jwt.go`
+
+JSON Web Token authentication with role-based access control.
+
+**Features:**
+- Token validation from header, query, or cookie
+- Configurable signing key and token lookup
+- User context extraction (user_id, username, email, role)
+- Role-based access control helpers
+- Optional authentication for public endpoints
+
+**Token Claims:**
+```go
+type JWTClaims struct {
+    UserID   string `json:"user_id"`
+    Username string `json:"username"`
+    Email    string `json:"email"`
+    Role     string `json:"role"`
+    jwt.RegisteredClaims
+}
+```
+
+**Usage:**
+```go
+// Require authentication
+e.Use(middleware.JWTRequired("secret-key"))
+
+// Optional authentication
+e.Use(middleware.JWTOptional("secret-key"))
+
+// Require admin role
+e.GET("/admin", handler, middleware.RequireAdmin())
+
+// Require specific roles
+e.GET("/dashboard", handler, middleware.RequireRole("user", "admin"))
+```
+
+**Token Generation:**
+```go
+token, err := middleware.GenerateToken(
+    "user-123",
+    "johndoe",
+    "john@example.com",
+    "user",
+    "secret-key",
+    24*time.Hour,
+)
+```
+
+### 17.4 Security Headers Middleware
+
+**Location:** `internal/middleware/security.go`
+
+Adds security headers to HTTP responses.
+
+**Headers Included:**
+- `Content-Security-Policy` - XSS protection
+- `X-Content-Type-Options: nosniff` - Prevent MIME sniffing
+- `X-Frame-Options: DENY` - Clickjacking protection
+- `X-XSS-Protection: 1; mode=block` - XSS filter
+- `Referrer-Policy: strict-origin-when-cross-origin` - Referrer control
+- `Permissions-Policy` - Feature restrictions
+- `Strict-Transport-Security` - HSTS with configurable max-age
+
+**Configuration:**
+```go
+// Default strict security
+middleware.Security()
+
+// Custom CSP
+middleware.SecurityWithConfig("default-src 'self'")
+
+// Permissive for development
+middleware.SecurityPermissive()
+```
+
+### 17.5 Audit Logging Middleware
+
+**Location:** `internal/middleware/audit.go`
+
+Logs all API requests for security auditing and compliance.
+
+**Logged Information:**
+- Timestamp, method, path, query parameters
+- HTTP status code and response latency
+- User ID and username (if authenticated)
+- Client IP address and user agent
+- Request ID for correlation
+
+**Configuration:**
+```go
+// Basic audit logging
+middleware.AuditWithConfig(logger)
+
+// Skip health check endpoints
+middleware.AuditSkipHealthCheck(logger)
+
+// Custom configuration
+middleware.Audit(middleware.AuditConfig{
+    Logger:         logger,
+    LogRequestBody: false,
+    LogHeaders:     false,
+    SensitiveHeaders: []string{"Authorization", "Cookie"},
+})
+```
+
+## 18. RESILIENCE PATTERNS
+
+### 18.1 Circuit Breaker
+
+**Location:** `pkg/resilience/circuit_breaker.go`
+
+Implements the circuit breaker pattern to prevent cascading failures.
+
+**States:**
+- **Closed**: Normal operation, requests pass through
+- **Open**: Failure threshold exceeded, requests fail fast
+- **Half-Open**: Testing recovery, limited requests allowed
+
+**Configuration:**
+```go
+cb := resilience.NewCircuitBreaker(resilience.CircuitBreakerConfig{
+    Name:                "redis",
+    MaxFailures:         5,
+    ResetTimeout:        30 * time.Second,
+    HalfOpenMaxRequests: 1,
+    OnStateChange: func(name string, from, to resilience.State) {
+        logger.Info("Circuit breaker state changed", "name", name, "from", from, "to", to)
+    },
+})
+```
+
+**Usage:**
+```go
+// Execute with circuit breaker protection
+err := cb.Execute(func() error {
+    return redisManager.Set(ctx, "key", "value", time.Minute)
+})
+
+// Execute with fallback
+err := cb.ExecuteWithFallback(
+    func() error { return redisManager.Get(ctx, "key") },
+    func() error { return "default-value", nil },
+)
+```
+
+**Circuit Breaker Manager:**
+```go
+manager := resilience.NewCircuitBreakerManager()
+cb := manager.GetOrCreate(config)
+stats := cb.GetStats() // Returns state, failures, successes
+```
+
+### 18.2 Retry with Exponential Backoff
+
+**Location:** `pkg/resilience/retry.go`
+
+Automatic retry with exponential backoff and jitter.
+
+**Features:**
+- Configurable max attempts and delays
+- Exponential backoff with optional jitter
+- Context cancellation support
+- Retry condition filtering
+- Generic result types
+
+**Configuration:**
+```go
+config := resilience.RetryConfig{
+    MaxAttempts:   3,
+    InitialDelay:  100 * time.Millisecond,
+    MaxDelay:      10 * time.Second,
+    BackoffFactor: 2.0,
+    Jitter:        true,
+    RetryIf:       resilience.RetryIfRetryable(),
+    OnRetry: func(attempt int, err error) {
+        logger.Warn("Retrying operation", "attempt", attempt, "error", err)
+    },
+}
+```
+
+**Usage:**
+```go
+// Basic retry
+err := resilience.Retry(func() error {
+    return kafkaManager.Publish("topic", message)
+}, config)
+
+// Retry with context
+err := resilience.RetryWithContext(ctx, func() error {
+    return dbManager.Query(ctx, "SELECT * FROM users")
+}, config)
+
+// Retry with result
+result, err := resilience.RetryWithResult(func() (string, error) {
+    return redisManager.Get(ctx, "key")
+}, config)
+```
+
+**Retryable Errors:**
+```go
+// Mark error as retryable
+return resilience.NewRetryableError(err)
+
+// Check if error is retryable
+if resilience.IsRetryable(err) {
+    // Handle retryable error
+}
+```
+
+### 18.3 Timeout Management
+
+**Location:** `pkg/resilience/timeout.go`
+
+Context-based timeout management for operations.
+
+**Features:**
+- Configurable timeout durations
+- Context cancellation propagation
+- Generic result types
+- Timeout error handling
+
+**Usage:**
+```go
+// Execute with timeout
+err := resilience.WithTimeout(func() error {
+    return slowOperation()
+}, 5*time.Second)
+
+// Execute with context
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+err := resilience.WithContext(ctx, func() error {
+    return operationWithContext(ctx)
+})
+
+// Execute with result and timeout
+result, err := resilience.WithTimeoutResult(func() ([]User, error) {
+    return dbManager.QueryUsers()
+}, 30*time.Second)
+```
+
+### 18.4 Deep Health Checks
+
+**Location:** `pkg/resilience/health.go`
+
+Comprehensive health checking system for all dependencies.
+
+**Health Statuses:**
+- `healthy` - All checks passing
+- `degraded` - Non-critical checks failing
+- `unhealthy` - Critical checks failing
+
+**Features:**
+- Concurrent health check execution
+- Critical vs non-critical checks
+- Timeout per check
+- Health report generation
+- Individual check inspection
+
+**Registration:**
+```go
+checker := resilience.NewHealthChecker()
+
+// Simple check
+checker.RegisterSimpleCheck("redis", func() error {
+    return redisManager.Ping(ctx)
+})
+
+// Critical check with custom timeout
+checker.RegisterCriticalCheck("postgres", func(ctx context.Context) error {
+    return postgresManager.Ping(ctx)
+})
+
+// Check with context
+checker.RegisterCheck(&resilience.HealthCheck{
+    Name:    "kafka",
+    Check:   func(ctx context.Context) error { return kafkaManager.Ping(ctx) },
+    Timeout: 5 * time.Second,
+    Critical: false,
+})
+```
+
+**Usage:**
+```go
+// Get full health report
+report := checker.Check(ctx)
+// report.Status: "healthy", "degraded", or "unhealthy"
+// report.Checks: map of individual check results
+
+// Check if healthy
+if checker.IsHealthy(ctx) {
+    // All systems operational
+}
+
+// Check if critical systems healthy
+if checker.IsCriticalHealthy(ctx) {
+    // Core systems operational, non-critical may be degraded
+}
+```
+
+**Health Report Structure:**
+```go
+type HealthReport struct {
+    Status    HealthStatus             `json:"status"`
+    Checks    map[string]*HealthResult `json:"checks"`
+    Timestamp time.Time                `json:"timestamp"`
+    Duration  time.Duration            `json:"duration"`
+}
+```
+
+## 19. TUI ENHANCEMENTS
+
+### 19.1 ASCII Art Charts
+
+**Location:** `pkg/tui/charts.go`
+
+Terminal-based chart rendering for monitoring dashboards.
+
+**Available Charts:**
+
+**Bar Chart:**
+```go
+chart := tui.NewBarChart("Request Distribution", 40)
+chart.AddItem("Users", 150, "")
+chart.AddItem("Products", 85, "")
+chart.AddItem("Orders", 200, "")
+fmt.Println(chart.Render())
+```
+
+**Sparkline:**
+```go
+sparkline := tui.NewSparkline("CPU Usage", 20)
+sparkline.SetValues([]float64{45, 52, 48, 61, 55, 70, 65})
+fmt.Println(sparkline.Render())
+// Output: ▃▅▅▇▅█▇
+```
+
+**Gauge:**
+```go
+gauge := tui.NewGauge("Memory", 20)
+gauge.SetValue(75)
+gauge.SetMax(100)
+fmt.Println(gauge.Render())
+// Output: Memory: [██████████████░░░░░░] 75.0%
+```
+
+**Table:**
+```go
+table := tui.NewTable("Service Status", 80)
+table.SetHeaders("Service", "Status", "Uptime")
+table.AddRow("Redis", "Healthy", "99.9%")
+table.AddRow("PostgreSQL", "Healthy", "99.8%")
+fmt.Println(table.Render())
+```
+
+## 20. DEPLOYMENT AND DEVOPS
+
+### 20.1 Kubernetes Templates
+
+**Location:** `deployments/kubernetes/deployment.yaml`
+
+Production-ready Kubernetes deployment configuration.
+
+**Features:**
+- Replica management (default: 3 replicas)
+- Resource requests and limits
+- Liveness and readiness probes
+- ConfigMap volume mounting
+- Health check endpoints
+
+**Resource Configuration:**
+```yaml
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+```
+
+**Health Probes:**
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+```
+
+### 20.2 Helm Chart
+
+**Location:** `deployments/helm/stackyard/`
+
+Helm chart for simplified Kubernetes deployments.
+
+**Chart.yaml:**
+```yaml
+apiVersion: v2
+name: stackyard
+description: A Helm chart for Stackyard API
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+```
+
+**Installation:**
+```bash
+helm install stackyard ./deployments/helm/stackyard
+helm upgrade stackyard ./deployments/helm/stackyard
+helm uninstall stackyard
+```
+
+### 20.3 GitHub Actions CI/CD
+
+**Location:** `.github/workflows/ci.yaml`
+
+Automated continuous integration and deployment pipeline.
+
+**Jobs:**
+1. **test** - Run unit tests with race detection and coverage
+2. **lint** - Code quality checks with golangci-lint
+3. **build** - Compile application
+
+**Features:**
+- Go module caching for faster builds
+- Coverage reporting to Codecov
+- Parallel job execution
+- Branch-based triggers (main, develop)
+
+**Workflow Triggers:**
+- Push to main or develop branches
+- Pull requests to main branch
+
+### 20.4 Enhanced Docker Compose
+
+**Location:** `docker-compose.yaml`
+
+Complete development stack with infrastructure services.
+
+**Services Included:**
+- **app** - Main application with health checks
+- **redis** - Redis cache (Alpine image)
+- **postgres** - PostgreSQL database (Alpine image)
+- **kafka** - Kafka message broker
+- **zookeeper** - Kafka coordination
+- **mongo** - MongoDB document database
+- **grafana** - Monitoring dashboards
+- **minio** - S3-compatible object storage
+
+**Features:**
+- Health checks for all services
+- Volume persistence for data
+- Automatic restart policies
+- Environment variable configuration
+- Port mappings for local development
+
+**Usage:**
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f app
+
+# Stop all services
+docker-compose down
+
+# Rebuild and start
+docker-compose up -d --build
+```
+
+## 21. API ENHANCEMENTS
+
+### 21.1 WebSocket Support
+
+**Location:** `pkg/websocket/handler.go`
+
+Real-time bidirectional communication via WebSocket connections.
+
+**Features:**
+- Hub pattern for connection management
+- Client registration and unregistration
+- Broadcasting to all connected clients
+- Direct messaging to specific clients
+- Connection statistics
+
+**Usage:**
+```go
+hub := websocket.NewHub()
+go hub.Run()
+
+// Register WebSocket endpoint
+e.GET("/ws", websocket.HandleWebSocket(hub))
+
+// Broadcast message
+websocket.BroadcastMessage(hub, "notification", map[string]interface{}{
+    "message": "System update available",
+})
+
+// Send to specific client
+hub.SendToClient("client-123", []byte("Hello"))
+```
+
+**Client Connection:**
+```javascript
+const ws = new WebSocket('ws://localhost:8080/ws?client_id=client-123');
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Received:', data);
+};
+```
+
+### 21.2 Cursor-Based Pagination
+
+**Location:** `pkg/pagination/cursor.go`
+
+Efficient pagination for large datasets using cursor-based navigation.
+
+**Advantages over Offset Pagination:**
+- Consistent results when data changes
+- Better performance for large datasets
+- No skipped or duplicate items
+
+**Usage:**
+```go
+// Create pagination from query parameters
+pagination, err := pagination.NewCursorPagination(
+    c.QueryParam("first"),  // Number of items
+    c.QueryParam("last"),   // Last N items
+    c.QueryParam("after"),  // Cursor for forward pagination
+    c.QueryParam("before"), // Cursor for backward pagination
+)
+
+// Create cursor from item
+cursor, _ := pagination.CreateCursor(item.ID, item.CreatedAt, "")
+
+// Create edge with cursor
+edge, _ := pagination.CreateEdge(item, cursor)
+
+// Create page response
+page := pagination.CreatePage(edges, hasNextPage, hasPreviousPage, totalCount)
+```
+
+**GraphQL-Style Response:**
+```json
+{
+  "edges": [
+    {"node": {"id": "1", "name": "Item 1"}, "cursor": "eyJpZCI6IjEifQ=="},
+    {"node": {"id": "2", "name": "Item 2"}, "cursor": "eyJpZCI6IjIifQ=="}
+  ],
+  "page_info": {
+    "has_next_page": true,
+    "has_previous_page": false,
+    "start_cursor": "eyJpZCI6IjEifQ==",
+    "end_cursor": "eyJpZCI6IjIifQ=="
+  },
+  "total_count": 100
+}
+```
+
+### 21.3 Batch Operations
+
+**Location:** `pkg/batch/operations.go`
+
+Efficient processing of multiple items in batches.
+
+**Features:**
+- Configurable batch size and workers
+- Parallel processing with worker pool
+- Retry support per item
+- Timeout management
+- Progress tracking
+
+**Batch Processor:**
+```go
+processor := batch.NewBatchProcessor(batch.BatchConfig{
+    BatchSize:     100,
+    Workers:       4,
+    Timeout:       30 * time.Second,
+    RetryAttempts: 3,
+    RetryDelay:    100 * time.Millisecond,
+}, func(ctx context.Context, item User) error {
+    return dbManager.CreateUser(ctx, item)
+})
+
+result, err := processor.Process(ctx, users)
+// result.Successful: 95
+// result.Failed: 5
+// result.Errors: [error1, error2, ...]
+// result.Duration: 2.5s
+```
+
+**Batch Writer:**
+```go
+writer := batch.NewBatchWriter(batch.DefaultBatchConfig(), func(ctx context.Context, items []LogEntry) error {
+    return dbManager.BulkInsertLogs(ctx, items)
+})
+
+for _, log := range logs {
+    writer.Add(ctx, log)
+}
+writer.Flush(ctx) // Flush remaining items
+```
+
+**Batch Reader:**
+```go
+reader := batch.NewBatchReader(batch.DefaultBatchConfig(), func(ctx context.Context, offset, limit int) ([]User, error) {
+    return dbManager.GetUsers(ctx, offset, limit)
+})
+
+allUsers, err := reader.ReadAll(ctx)
+```
+
+### 21.4 Webhook Support
+
+**Location:** `pkg/webhook/handler.go`
+
+Outbound webhook delivery with retry and signature verification.
+
+**Features:**
+- HMAC-SHA256 signature verification
+- Configurable retry with backoff
+- Event type routing
+- Timeout management
+- Webhook statistics
+
+**Configuration:**
+```go
+manager := webhook.NewWebhookManager(webhook.WebhookConfig{
+    URL:        "https://example.com/webhook",
+    Secret:     "webhook-secret",
+    Timeout:    30 * time.Second,
+    MaxRetries: 3,
+    RetryDelay: 1 * time.Second,
+    Headers:    map[string]string{"X-Custom": "value"},
+    Enabled:    true,
+})
+```
+
+**Sending Webhooks:**
+```go
+event := webhook.WebhookEvent{
+    ID:        "evt-123",
+    Type:      "user.created",
+    Timestamp: time.Now(),
+    Data: map[string]interface{}{
+        "user_id": "user-456",
+        "email":   "john@example.com",
+    },
+}
+
+resp, err := manager.Send(ctx, event)
+```
+
+**Receiving Webhooks:**
+```go
+handler := webhook.NewWebhookHandler(manager)
+e.POST("/webhooks/incoming", echo.WrapHandler(http.HandlerFunc(handler.Handle)))
+```
+
+**Signature Verification:**
+```go
+// Verify webhook signature
+isValid := webhook.VerifySignature(payload, signature, secret)
+```
+
+## 22. LOGGING AND OBSERVABILITY
+
+### 22.1 Structured JSON Logging
+
+**Location:** `pkg/logging/structured.go`
+
+Production-ready structured logging with JSON output.
+
+**Features:**
+- JSON-formatted log entries
+- Multiple log levels (DEBUG, INFO, WARN, ERROR, FATAL)
+- Context-aware logging (request ID, user ID, trace ID)
+- Caller information capture
+- Stack traces for errors
+- Service metadata
+
+**Log Entry Structure:**
+```json
+{
+  "timestamp": "2026-03-27T15:30:00Z",
+  "level": "INFO",
+  "message": "Request processed",
+  "caller": "/app/internal/server/server.go:123",
+  "request_id": "req-abc123",
+  "user_id": "user-456",
+  "service_name": "stackyard",
+  "version": "1.0.0",
+  "environment": "production",
+  "fields": {
+    "method": "GET",
+    "path": "/api/v1/users",
+    "status": 200,
+    "duration": "45ms"
+  }
+}
+```
+
+**Usage:**
+```go
+logger := logging.NewStructuredLogger(
+    os.Stdout,
+    logging.INFO,
+    "stackyard",
+    "1.0.0",
+    "production",
+)
+
+// Basic logging
+logger.Info("Server started", map[string]interface{}{
+    "port": 8080,
+})
+
+// Context-aware logging
+ctxLogger := logger.WithContext(ctx)
+ctxLogger.Error("Database connection failed", map[string]interface{}{
+    "error": err.Error(),
+})
+
+// With fields
+fieldLogger := logger.WithFields(map[string]interface{}{
+    "component": "auth",
+})
+fieldLogger.Debug("Token validated")
+```
+
+### 22.2 Log Sampling
+
+**Location:** `pkg/logging/sampler.go`
+
+Intelligent log sampling to reduce volume in high-traffic scenarios.
+
+**Sampling Strategies:**
+
+**Rate-Based Sampling:**
+```go
+sampler := logging.NewLogSampler(logging.SampleByRate, 0.1, 0, 0) // Sample 10%
+```
+
+**Count-Based Sampling:**
+```go
+sampler := logging.NewLogSampler(logging.SampleByCount, 0, 100, 0) // Every 100th log
+```
+
+**Time-Based Sampling:**
+```go
+sampler := logging.NewLogSampler(logging.SampleByTime, 0, 0, time.Minute) // One per minute
+```
+
+**Adaptive Sampling:**
+```go
+sampler := logging.NewAdaptiveSampler(0.5, 0.01, 1.0, time.Minute)
+// Adjusts rate based on log volume
+```
+
+**Usage:**
+```go
+samplingLogger := logging.NewSamplingLogger(logger, sampler)
+samplingLogger.Info("High-frequency log message") // Only sampled entries logged
+```
+
+### 22.3 Log Rotation
+
+**Location:** `pkg/logging/rotation.go`
+
+Automatic log file rotation based on size and age.
+
+**Features:**
+- Size-based rotation
+- Age-based cleanup
+- Configurable backup count
+- Optional compression
+- Thread-safe operations
+
+**Configuration:**
+```go
+writer, err := logging.NewRotatingWriter("/var/log/stackyard/app.log", logging.RotationConfig{
+    MaxSize:    100 * 1024 * 1024, // 100MB
+    MaxAge:     7 * 24 * time.Hour, // 7 days
+    MaxBackups: 10,
+    Compress:   true,
+})
+```
+
+**File Naming:**
+```
+app.log
+app.log.2026-03-27T15-30-00
+app.log.2026-03-26T15-30-00
+...
+```
+
+### 22.4 Prometheus Metrics
+
+**Location:** `pkg/metrics/prometheus.go`
+
+Application metrics collection for monitoring and alerting.
+
+**Metrics Included:**
+
+**HTTP Metrics:**
+- `http_requests_total` - Total HTTP requests by method, path, status
+- `http_request_duration_seconds` - Request duration histogram
+- `http_request_size_bytes` - Request size histogram
+- `http_response_size_bytes` - Response size histogram
+
+**Infrastructure Metrics:**
+- `active_connections` - Active connection count
+- `database_connections` - Database connection pool by state
+- `cache_hits_total` - Cache hit counter
+- `cache_misses_total` - Cache miss counter
+
+**Resilience Metrics:**
+- `circuit_breaker_state` - Circuit breaker state (0=closed, 1=half-open, 2=open)
+- `circuit_breaker_trips_total` - Circuit breaker trip counter
+
+**WebSocket Metrics:**
+- `websocket_connections` - Active WebSocket connections
+
+**Batch Operation Metrics:**
+- `batch_operations_total` - Batch operation counter
+- `batch_duration_seconds` - Batch operation duration
+
+**Logging Metrics:**
+- `log_entries_total` - Log entry counter by level
+- `errors_total` - Error counter by type
+
+**Usage:**
+```go
+metrics := metrics.NewMetrics()
+
+// Record HTTP request
+metrics.RecordHTTPRequest("GET", "/api/users", 200, 45*time.Millisecond, 1024, 2048)
+
+// Record cache hit
+metrics.RecordCacheHit("redis", "get")
+
+// Set circuit breaker state
+metrics.SetCircuitBreakerState("redis", 0) // 0=closed
+
+// Record webhook event
+metrics.RecordWebhookEvent("user.created", "success", 150*time.Millisecond)
+
+// Set WebSocket connections
+metrics.SetWebSocketConnections(42)
+```
+
+**Metrics Endpoint:**
+```go
+e.GET("/metrics", echo.WrapHandler(metrics.Handler()))
+```
+
+## 23. PROJECT STRUCTURE UPDATES
+
+### 23.1 Package Additions
+
+The following packages have been added to the project:
+
+```
+pkg/
+├── batch/                    # Batch operations
+│   └── operations.go
+├── logging/                  # Logging utilities
+│   ├── structured.go
+│   ├── sampler.go
+│   └── rotation.go
+├── metrics/                  # Prometheus metrics
+│   └── prometheus.go
+├── pagination/               # Cursor-based pagination
+│   └── cursor.go
+├── resilience/               # Resilience patterns
+│   ├── circuit_breaker.go
+│   ├── retry.go
+│   ├── timeout.go
+│   └── health.go
+├── testing/                  # Test utilities
+│   ├── helpers.go
+│   └── mocks.go
+├── webhook/                  # Webhook support
+│   └── handler.go
+└── websocket/                # WebSocket support
+    └── handler.go
+```
+
+### 23.2 Middleware Additions
+
+```
+internal/middleware/
+├── audit.go                  # Audit logging
+├── cors.go                   # CORS support
+├── encryption.go             # API encryption
+├── jwt.go                    # JWT authentication
+├── middleware.go             # General middleware
+├── ratelimit.go              # Rate limiting
+└── security.go               # Security headers
+```
+
+### 23.3 Deployment Additions
+
+```
+deployments/
+├── helm/
+│   └── stackyard/
+│       └── Chart.yaml        # Helm chart
+└── kubernetes/
+    └── deployment.yaml       # Kubernetes deployment
+```
+
+### 23.4 Test Structure
+
+```
+tests/
+└── services/                 # Service unit tests
+    ├── users_service_test.go
+    └── products_service_test.go
+```
+
+### 23.5 Configuration Additions
+
+**New Dependencies in go.mod:**
+- `github.com/gorilla/websocket` - WebSocket support
+- `github.com/golang-jwt/jwt/v5` - JWT authentication
+- `github.com/prometheus/client_golang` - Prometheus metrics

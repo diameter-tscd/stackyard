@@ -28,6 +28,14 @@ func (s *ProductsService) Enabled() bool       { return s.enabled }
 func (s *ProductsService) Endpoints() []string { return []string{"/products"} }
 func (s *ProductsService) Get() interface{}    { return s }
 
+// GetProducts godoc
+// @Summary Get products
+// @Description Get a list of products
+// @Tags products
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response "Success"
+// @Router /products [get]
 func (s *ProductsService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/products")
 	sub.GET("", func(c echo.Context) error {
