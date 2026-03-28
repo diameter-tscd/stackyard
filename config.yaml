@@ -90,20 +90,20 @@ monitoring:
   max_photo_size_mb: 2
   upload_dir: "web/monitoring/uploads"
   
-  minio:
-    enabled: true
-    endpoint: "localhost:9003"
-    access_key_id: "minioadmin"
-    secret_access_key: "minioadmin"
-    use_ssl: false
-    bucket_name: "main"
+minio:
+  enabled: true
+  endpoint: "localhost:9003"
+  access_key_id: "minioadmin"
+  secret_access_key: "minioadmin"
+  use_ssl: false
+  bucket_name: "main"
 
-  external:
-    services:
-      - name: "Google"
-        url: "https://google.com"
-      - name: "Local API"
-        url: "http://localhost:8080/health"
+external:
+  services:
+    - name: "Google"
+      url: "https://google.com"
+    - name: "Local API"
+      url: "http://localhost:8080/health"
   
 cron:
   enabled: true

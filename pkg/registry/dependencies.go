@@ -14,6 +14,7 @@ type Dependencies struct {
 	MongoConnectionManager    *infrastructure.MongoConnectionManager
 	GrafanaManager            *infrastructure.GrafanaManager
 	CronManager               *infrastructure.CronManager
+	MinIOManager              *infrastructure.MinIOManager
 }
 
 // NewDependencies creates a new dependencies container
@@ -26,6 +27,7 @@ func NewDependencies(
 	mongoConnectionManager *infrastructure.MongoConnectionManager,
 	grafanaManager *infrastructure.GrafanaManager,
 	cronManager *infrastructure.CronManager,
+	minIOManager *infrastructure.MinIOManager,
 ) *Dependencies {
 	return &Dependencies{
 		RedisManager:              redisManager,
@@ -36,5 +38,6 @@ func NewDependencies(
 		MongoConnectionManager:    mongoConnectionManager,
 		GrafanaManager:            grafanaManager,
 		CronManager:               cronManager,
+		MinIOManager:              minIOManager,
 	}
 }

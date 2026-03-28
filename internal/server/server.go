@@ -77,11 +77,19 @@ func (s *Server) Start() error {
 	s.infraInitManager = infrastructure.NewInfraInitManager(s.logger)
 
 	s.logger.Info("Starting async infrastructure initialization...")
-	redisManager, kafkaManager, _, postgresConnectionManager, mongoConnectionManager, grafanaManager, cronManager :=
+	redisManager, kafkaManager, minIOManager, postgresConnectionManager, mongoConnectionManager, grafanaManager, cronManager :=
 		s.infraInitManager.StartAsyncInitialization(s.config, s.logger)
 
 	s.dependencies = registry.NewDependencies(
-		redisManager, kafkaManager, nil, postgresConnectionManager, nil, mongoConnectionManager, grafanaManager, cronManager,
+		redisManager,
+		kafkaManager,
+		nil,
+		postgresConnectionManager,
+		nil,
+		mongoConnectionManager,
+		grafanaManager,
+		cronManager,
+		minIOManager,
 	)
 
 	s.setConnectionDefaults(postgresConnectionManager, mongoConnectionManager)
@@ -197,6 +205,7 @@ func (s *Server) GetStatus() map[string]interface{} {
 		"mongo":    checkEnabled(s.config.Mongo.Enabled || s.config.MongoMultiConfig.Enabled, s.dependencies.MongoManager),
 		"grafana":  checkEnabled(s.config.Grafana.Enabled, s.dependencies.GrafanaManager),
 		"cron":     checkEnabled(s.config.Cron.Enabled, s.dependencies.CronManager),
+		"minio":    checkEnabled(s.config.MinIO.Enabled, s.dependencies.MinIOManager),
 	}
 
 	return map[string]interface{}{
