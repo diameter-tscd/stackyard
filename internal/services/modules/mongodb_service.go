@@ -66,7 +66,17 @@ func (s *MongoDBService) RegisterRoutes(g *echo.Group) {
 	sub.GET("/:tenant/analytics", s.getProductAnalytics)
 }
 
-// listProductsByTenant lists products from a specific tenant database
+// listProductsByTenant godoc
+// @Summary List products by tenant
+// @Description Retrieve all products from a specific tenant's database
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Success 200 {object} response.Response "Products retrieved from tenant database"
+// @Failure 404 {object} response.Response "Tenant database not found"
+// @Failure 500 {object} response.Response "Failed to query tenant database"
+// @Router /products/{tenant} [get]
 func (s *MongoDBService) listProductsByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 
@@ -94,7 +104,19 @@ func (s *MongoDBService) listProductsByTenant(c echo.Context) error {
 	return response.Success(c, products, fmt.Sprintf("Products retrieved from tenant '%s' database", tenant))
 }
 
-// createProduct creates a new product in the specified tenant database
+// createProduct godoc
+// @Summary Create product in tenant database
+// @Description Create a new product in a specific tenant's database
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param request body Product true "Product data"
+// @Success 201 {object} response.Response "Product created in tenant database"
+// @Failure 400 {object} response.Response "Invalid product data"
+// @Failure 404 {object} response.Response "Tenant database not found"
+// @Failure 500 {object} response.Response "Failed to create product"
+// @Router /products/{tenant} [post]
 func (s *MongoDBService) createProduct(c echo.Context) error {
 	tenant := c.Param("tenant")
 
@@ -144,7 +166,19 @@ func (s *MongoDBService) createProduct(c echo.Context) error {
 	return response.Created(c, responseData, fmt.Sprintf("Product created in tenant '%s' database", tenant))
 }
 
-// getProductByTenant retrieves a specific product from a tenant database
+// getProductByTenant godoc
+// @Summary Get product by tenant
+// @Description Retrieve a specific product from a tenant's database
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param id path string true "Product ID"
+// @Success 200 {object} response.Response "Product retrieved from tenant database"
+// @Failure 400 {object} response.Response "Invalid product ID format"
+// @Failure 404 {object} response.Response "Tenant database or product not found"
+// @Failure 500 {object} response.Response "Failed to query tenant database"
+// @Router /products/{tenant}/{id} [get]
 func (s *MongoDBService) getProductByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 	id := c.Param("id")
@@ -174,7 +208,20 @@ func (s *MongoDBService) getProductByTenant(c echo.Context) error {
 	return response.Success(c, product, fmt.Sprintf("Product retrieved from tenant '%s' database", tenant))
 }
 
-// updateProduct updates a product in the specified tenant database
+// updateProduct godoc
+// @Summary Update product in tenant database
+// @Description Update a product in a specific tenant's database
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param id path string true "Product ID"
+// @Param request body map[string]interface{} true "Product update data"
+// @Success 200 {object} response.Response "Product updated in tenant database"
+// @Failure 400 {object} response.Response "Invalid product ID format or update data"
+// @Failure 404 {object} response.Response "Tenant database or product not found"
+// @Failure 500 {object} response.Response "Failed to update product"
+// @Router /products/{tenant}/{id} [put]
 func (s *MongoDBService) updateProduct(c echo.Context) error {
 	tenant := c.Param("tenant")
 	id := c.Param("id")
@@ -221,7 +268,19 @@ func (s *MongoDBService) updateProduct(c echo.Context) error {
 	return response.Success(c, bson.M{"modified_count": result.ModifiedCount}, fmt.Sprintf("Product updated in tenant '%s' database", tenant))
 }
 
-// deleteProduct deletes a product from the specified tenant database
+// deleteProduct godoc
+// @Summary Delete product from tenant database
+// @Description Delete a product from a specific tenant's database
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param id path string true "Product ID"
+// @Success 200 {object} response.Response "Product deleted from tenant database"
+// @Failure 400 {object} response.Response "Invalid product ID format"
+// @Failure 404 {object} response.Response "Tenant database or product not found"
+// @Failure 500 {object} response.Response "Failed to delete product"
+// @Router /products/{tenant}/{id} [delete]
 func (s *MongoDBService) deleteProduct(c echo.Context) error {
 	tenant := c.Param("tenant")
 	id := c.Param("id")
@@ -252,7 +311,23 @@ func (s *MongoDBService) deleteProduct(c echo.Context) error {
 	return response.Success(c, bson.M{"deleted_count": result.DeletedCount}, fmt.Sprintf("Product deleted from tenant '%s' database", tenant))
 }
 
-// searchProducts performs advanced search on products
+// searchProducts godoc
+// @Summary Search products in tenant database
+// @Description Search products with various filters in a tenant's database
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param name query string false "Search by product name"
+// @Param category query string false "Filter by category"
+// @Param in_stock query boolean false "Filter by stock availability"
+// @Param min_price query number false "Minimum price filter"
+// @Param max_price query number false "Maximum price filter"
+// @Param tags query string false "Filter by tags (comma-separated)"
+// @Success 200 {object} response.Response "Products found"
+// @Failure 404 {object} response.Response "Tenant database not found"
+// @Failure 500 {object} response.Response "Failed to search products"
+// @Router /products/{tenant}/search [get]
 func (s *MongoDBService) searchProducts(c echo.Context) error {
 	tenant := c.Param("tenant")
 
@@ -324,7 +399,17 @@ func (s *MongoDBService) searchProducts(c echo.Context) error {
 	return response.Success(c, products, fmt.Sprintf("Found %d products in tenant '%s' database", len(products), tenant))
 }
 
-// getProductAnalytics provides analytics for products in a tenant
+// getProductAnalytics godoc
+// @Summary Get product analytics
+// @Description Get analytics for products in a tenant's database
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Success 200 {object} response.Response "Product analytics for tenant database"
+// @Failure 404 {object} response.Response "Tenant database not found"
+// @Failure 500 {object} response.Response "Failed to aggregate product analytics"
+// @Router /products/{tenant}/analytics [get]
 func (s *MongoDBService) getProductAnalytics(c echo.Context) error {
 	tenant := c.Param("tenant")
 

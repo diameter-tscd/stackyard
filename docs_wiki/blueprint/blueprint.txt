@@ -1,5 +1,23 @@
 # PROJECT BLUEPRINT - COMPREHENSIVE ANALYSIS
 
+## DOCUMENTATION TERMS
+
+### Writing Guidelines
+
+**Formatting Rules:**
+- No emojis in documentation
+- No "new" context references (describe existing state only)
+- Use present tense for current features
+- Use past tense for historical changes
+- Maintain professional tone throughout
+
+**Terminology Standards:**
+- Use "existing" instead of "new"
+- Use "current" instead of "modern"
+- Use "available" instead of "introduced"
+- Use "includes" instead of "adds"
+- Use "provides" instead of "offers"
+
 ## 1. PROJECT OVERVIEW
 
 This project is a sophisticated Go-based boilerplate application with a modular architecture, comprehensive API structure, and advanced monitoring capabilities. The system is designed for extensibility, security, and production readiness.

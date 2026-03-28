@@ -20,6 +20,9 @@ type FlagDefinition struct {
 // ParsedFlags holds the parsed flag values
 type ParsedFlags struct {
 	ConfigURL string // -c flag value
+	Port      string // -port flag value
+	Verbose   bool   // -verbose flag value
+	Env       string // -env flag value
 	// Add new flags here as needed
 }
 
@@ -56,6 +59,10 @@ func ParseFlags(flagDefinitions []FlagDefinition) (*ParsedFlags, error) {
 			value = *ptr
 			if def.Name == "c" {
 				parsed.ConfigURL = *ptr
+			} else if def.Name == "port" {
+				parsed.Port = *ptr
+			} else if def.Name == "env" {
+				parsed.Env = *ptr
 			}
 			// Add new string flag assignments here
 		case *int:
@@ -63,6 +70,9 @@ func ParseFlags(flagDefinitions []FlagDefinition) (*ParsedFlags, error) {
 			// Add new int flag assignments here
 		case *bool:
 			value = *ptr
+			if def.Name == "verbose" {
+				parsed.Verbose = *ptr
+			}
 			// Add new bool flag assignments here
 		}
 
@@ -142,8 +152,9 @@ func PrintUsage(flagDefinitions []FlagDefinition, appName string) {
 	}
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  ./" + appName + "                          # Load config from local config.yaml")
-	fmt.Println("  ./" + appName + " -c http://example.com/config.yaml  # Load config from URL")
-	fmt.Println("  ./" + appName + " -c https://config.example.com/app-config.yaml  # Load config from HTTPS URL")
+	fmt.Printf("  ./%-40s # Load config from local config.yaml\n", appName)
+	fmt.Printf("  ./%s -c http://example.com/config.yaml\n", appName)
+	fmt.Printf("  ./%s -port 9090 -env production\n", appName)
+	fmt.Printf("  ./%s -c https://config.example.com/app.yaml -verbose\n", appName)
 	fmt.Println()
 }

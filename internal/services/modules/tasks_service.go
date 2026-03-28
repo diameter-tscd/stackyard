@@ -62,6 +62,15 @@ func (s *TasksService) RegisterRoutes(g *echo.Group) {
 	sub.DELETE("/:id", s.deleteTask)
 }
 
+// listTasks godoc
+// @Summary List all tasks
+// @Description Retrieve all tasks from the database
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response "Tasks retrieved successfully"
+// @Failure 500 {object} response.Response "Failed to retrieve tasks"
+// @Router /tasks [get]
 func (s *TasksService) listTasks(c echo.Context) error {
 	var tasks []Task
 
@@ -77,6 +86,17 @@ func (s *TasksService) listTasks(c echo.Context) error {
 	return response.Success(c, tasks)
 }
 
+// createTask godoc
+// @Summary Create a new task
+// @Description Create a new task in the database
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param request body Task true "Task to create"
+// @Success 201 {object} response.Response "Task created successfully"
+// @Failure 400 {object} response.Response "Invalid input"
+// @Failure 500 {object} response.Response "Failed to create task"
+// @Router /tasks [post]
 func (s *TasksService) createTask(c echo.Context) error {
 	task := new(Task)
 	if err := c.Bind(task); err != nil {
@@ -95,6 +115,19 @@ func (s *TasksService) createTask(c echo.Context) error {
 	return response.Created(c, task)
 }
 
+// updateTask godoc
+// @Summary Update a task
+// @Description Update an existing task by ID
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path int true "Task ID"
+// @Param request body Task true "Task data to update"
+// @Success 200 {object} response.Response "Task updated successfully"
+// @Failure 400 {object} response.Response "Invalid input"
+// @Failure 404 {object} response.Response "Task not found"
+// @Failure 500 {object} response.Response "Failed to update task"
+// @Router /tasks/{id} [put]
 func (s *TasksService) updateTask(c echo.Context) error {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var task Task
@@ -120,6 +153,16 @@ func (s *TasksService) updateTask(c echo.Context) error {
 	return response.Success(c, task)
 }
 
+// deleteTask godoc
+// @Summary Delete a task
+// @Description Delete a task by ID
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path int true "Task ID"
+// @Success 200 {object} response.Response "Task deleted successfully"
+// @Failure 500 {object} response.Response "Failed to delete task"
+// @Router /tasks/{id} [delete]
 func (s *TasksService) deleteTask(c echo.Context) error {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var task Task

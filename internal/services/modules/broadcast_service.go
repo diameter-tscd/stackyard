@@ -140,6 +140,16 @@ func (s *BroadcastService) RegisterRoutes(g *echo.Group) {
 // HANDLER METHODS - Using Broadcast Utility
 // =========================================
 
+// StreamEvents godoc
+// @Summary Stream events from a specific stream
+// @Description Subscribe to Server-Sent Events (SSE) for a specific stream
+// @Tags events
+// @Accept json
+// @Produce text/event-stream
+// @Param stream_id path string true "Stream ID"
+// @Success 200 {string} string "SSE stream"
+// @Failure 404 {object} response.Response "Stream not found"
+// @Router /events/stream/{stream_id} [get]
 func (s *BroadcastService) streamEvents(c echo.Context) error {
 	streamID := c.Param("stream_id")
 	client := s.broadcaster.Subscribe(streamID)

@@ -186,6 +186,17 @@ func (s *EncryptionService) decrypt(encryptedData string) ([]byte, error) {
 }
 
 // Handlers
+// EncryptData godoc
+// @Summary Encrypt data
+// @Description Encrypt plaintext data using AES-256-GCM
+// @Tags encryption
+// @Accept json
+// @Produce json
+// @Param request body EncryptRequest true "Data to encrypt"
+// @Success 200 {object} response.Response{data=EncryptResponse} "Data encrypted successfully"
+// @Failure 400 {object} response.Response "Invalid request body"
+// @Failure 500 {object} response.Response "Encryption failed"
+// @Router /encryption/encrypt [post]
 func (s *EncryptionService) EncryptData(c echo.Context) error {
 	var req EncryptRequest
 	if err := c.Bind(&req); err != nil {
@@ -214,6 +225,16 @@ func (s *EncryptionService) EncryptData(c echo.Context) error {
 	return response.Success(c, resp, "Data encrypted successfully")
 }
 
+// DecryptData godoc
+// @Summary Decrypt data
+// @Description Decrypt encrypted data using AES-256-GCM
+// @Tags encryption
+// @Accept json
+// @Produce json
+// @Param request body DecryptRequest true "Data to decrypt"
+// @Success 200 {object} response.Response{data=DecryptResponse} "Data decrypted successfully"
+// @Failure 400 {object} response.Response "Invalid request body or decryption failed"
+// @Router /encryption/decrypt [post]
 func (s *EncryptionService) DecryptData(c echo.Context) error {
 	var req DecryptRequest
 	if err := c.Bind(&req); err != nil {
@@ -242,6 +263,14 @@ func (s *EncryptionService) DecryptData(c echo.Context) error {
 	return response.Success(c, resp, "Data decrypted successfully")
 }
 
+// GetStatus godoc
+// @Summary Get encryption service status
+// @Description Get the current status and configuration of the encryption service
+// @Tags encryption
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response{data=StatusResponse} "Encryption service status"
+// @Router /encryption/status [get]
 func (s *EncryptionService) GetStatus(c echo.Context) error {
 	// Get current key info (show only first 8 chars for security)
 	currentKeyPreview := fmt.Sprintf("%s...", hex.EncodeToString(s.encryptionKey[:4]))
@@ -258,6 +287,16 @@ func (s *EncryptionService) GetStatus(c echo.Context) error {
 	return response.Success(c, resp, "Encryption service status")
 }
 
+// RotateKey godoc
+// @Summary Rotate encryption key
+// @Description Rotate the encryption key with a new key
+// @Tags encryption
+// @Accept json
+// @Produce json
+// @Param request body KeyRotateRequest true "New encryption key"
+// @Success 200 {object} response.Response "Key rotation successful"
+// @Failure 400 {object} response.Response "Invalid request body"
+// @Router /encryption/key-rotate [post]
 func (s *EncryptionService) RotateKey(c echo.Context) error {
 	var req KeyRotateRequest
 	if err := c.Bind(&req); err != nil {

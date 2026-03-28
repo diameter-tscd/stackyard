@@ -76,7 +76,17 @@ func (s *MultiTenantService) RegisterRoutes(g *echo.Group) {
 	sub.DELETE("/:tenant/:id", s.deleteOrder)
 }
 
-// listOrdersByTenant lists orders from a specific tenant database
+// listOrdersByTenant godoc
+// @Summary List orders by tenant
+// @Description Retrieve all orders from a specific tenant's database
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Success 200 {object} response.Response "Orders retrieved from tenant database"
+// @Failure 404 {object} response.Response "Tenant database not found"
+// @Failure 500 {object} response.Response "Failed to query tenant database"
+// @Router /orders/{tenant} [get]
 func (s *MultiTenantService) listOrdersByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 
@@ -96,7 +106,19 @@ func (s *MultiTenantService) listOrdersByTenant(c echo.Context) error {
 	return response.Success(c, orders, fmt.Sprintf("Orders retrieved from tenant '%s' database", tenant))
 }
 
-// createOrder creates a new order in the specified tenant database
+// createOrder godoc
+// @Summary Create order in tenant database
+// @Description Create a new order in a specific tenant's database
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param request body MultiTenantOrder true "Order data"
+// @Success 201 {object} response.Response "Order created in tenant database"
+// @Failure 400 {object} response.Response "Invalid order data"
+// @Failure 404 {object} response.Response "Tenant database not found"
+// @Failure 500 {object} response.Response "Failed to create order"
+// @Router /orders/{tenant} [post]
 func (s *MultiTenantService) createOrder(c echo.Context) error {
 	tenant := c.Param("tenant")
 
@@ -124,7 +146,19 @@ func (s *MultiTenantService) createOrder(c echo.Context) error {
 	return response.Created(c, order, fmt.Sprintf("Order created in tenant '%s' database", tenant))
 }
 
-// getOrderByTenant retrieves a specific order from a tenant database
+// getOrderByTenant godoc
+// @Summary Get order by tenant
+// @Description Retrieve a specific order from a tenant's database
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param id path string true "Order ID"
+// @Success 200 {object} response.Response "Order retrieved from tenant database"
+// @Failure 400 {object} response.Response "Invalid order ID"
+// @Failure 404 {object} response.Response "Tenant database or order not found"
+// @Failure 500 {object} response.Response "Failed to query tenant database"
+// @Router /orders/{tenant}/{id} [get]
 func (s *MultiTenantService) getOrderByTenant(c echo.Context) error {
 	tenant := c.Param("tenant")
 	idStr := c.Param("id")
@@ -152,7 +186,20 @@ func (s *MultiTenantService) getOrderByTenant(c echo.Context) error {
 	return response.Success(c, order, fmt.Sprintf("Order retrieved from tenant '%s' database", tenant))
 }
 
-// updateOrder updates an order in the specified tenant database
+// updateOrder godoc
+// @Summary Update order in tenant database
+// @Description Update an order in a specific tenant's database
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param id path string true "Order ID"
+// @Param request body MultiTenantOrder true "Order update data"
+// @Success 200 {object} response.Response "Order updated in tenant database"
+// @Failure 400 {object} response.Response "Invalid order ID or update data"
+// @Failure 404 {object} response.Response "Tenant database or order not found"
+// @Failure 500 {object} response.Response "Failed to update order"
+// @Router /orders/{tenant}/{id} [put]
 func (s *MultiTenantService) updateOrder(c echo.Context) error {
 	tenant := c.Param("tenant")
 	idStr := c.Param("id")
@@ -212,7 +259,19 @@ func (s *MultiTenantService) updateOrder(c echo.Context) error {
 	return response.Success(c, nil, fmt.Sprintf("Order updated in tenant '%s' database", tenant))
 }
 
-// deleteOrder deletes an order from the specified tenant database
+// deleteOrder godoc
+// @Summary Delete order from tenant database
+// @Description Delete an order from a specific tenant's database
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param tenant path string true "Tenant identifier"
+// @Param id path string true "Order ID"
+// @Success 200 {object} response.Response "Order deleted from tenant database"
+// @Failure 400 {object} response.Response "Invalid order ID"
+// @Failure 404 {object} response.Response "Tenant database or order not found"
+// @Failure 500 {object} response.Response "Failed to delete order"
+// @Router /orders/{tenant}/{id} [delete]
 func (s *MultiTenantService) deleteOrder(c echo.Context) error {
 	tenant := c.Param("tenant")
 	idStr := c.Param("id")

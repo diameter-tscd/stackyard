@@ -40,31 +40,56 @@ func (s *CacheService) RegisterRoutes(g *echo.Group) {
 	sub := g.Group("/cache")
 
 	// GET /cache/:key
-	sub.GET("/:key", func(c echo.Context) error {
-		key := c.Param("key")
-		val, found := s.store.Get(key)
-		if !found {
-			return response.NotFound(c, "Key not found or expired")
-		}
-		return response.Success(c, map[string]string{"key": key, "value": val})
-	})
+	sub.GET("/:key", s.GetCachedValue)
 
 	// POST /cache/:key
-	sub.POST("/:key", func(c echo.Context) error {
-		key := c.Param("key")
-		var req CacheRequest
-		if err := c.Bind(&req); err != nil {
-			return response.BadRequest(c, "Invalid body")
-		}
+	sub.POST("/:key", s.SetCachedValue)
+}
 
-		ttl := time.Duration(req.TTL) * time.Second
-		s.store.Set(key, req.Value, ttl)
+// GetCachedValue godoc
+// @Summary Get cached value by key
+// @Description Retrieve a cached value by its key
+// @Tags cache
+// @Accept json
+// @Produce json
+// @Param key path string true "Cache key"
+// @Success 200 {object} response.Response "Success"
+// @Failure 404 {object} response.Response "Key not found or expired"
+// @Router /cache/{key} [get]
+func (s *CacheService) GetCachedValue(c echo.Context) error {
+	key := c.Param("key")
+	val, found := s.store.Get(key)
+	if !found {
+		return response.NotFound(c, "Key not found or expired")
+	}
+	return response.Success(c, map[string]string{"key": key, "value": val})
+}
 
-		return response.Success(c, map[string]string{
-			"message": "Cached successfully",
-			"key":     key,
-			"ttl":     ttl.String(),
-		})
+// SetCachedValue godoc
+// @Summary Set cached value
+// @Description Store a value in the cache with optional TTL
+// @Tags cache
+// @Accept json
+// @Produce json
+// @Param key path string true "Cache key"
+// @Param request body CacheRequest true "Cache request"
+// @Success 200 {object} response.Response "Cached successfully"
+// @Failure 400 {object} response.Response "Invalid body"
+// @Router /cache/{key} [post]
+func (s *CacheService) SetCachedValue(c echo.Context) error {
+	key := c.Param("key")
+	var req CacheRequest
+	if err := c.Bind(&req); err != nil {
+		return response.BadRequest(c, "Invalid body")
+	}
+
+	ttl := time.Duration(req.TTL) * time.Second
+	s.store.Set(key, req.Value, ttl)
+
+	return response.Success(c, map[string]string{
+		"message": "Cached successfully",
+		"key":     key,
+		"ttl":     ttl.String(),
 	})
 }
 
