@@ -35,20 +35,15 @@ func New(cfg *config.Config, l *logger.Logger, b *monitoring.LogBroadcaster) *Se
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
-
-	// Enable GZIP compression for all responses
 	e.Use(echoMiddleware.Gzip())
 
-	// Custom HTTP Error Handler for JSON responses
 	e.HTTPErrorHandler = func(err error, c echo.Context) {
 		l.Error("HTTP Error", err)
 
-		// Handle HTTP errors with JSON response
 		if he, ok := err.(*echo.HTTPError); ok {
 			var message string
 			code := he.Code
 
-			// Custom message for 404 Not Found
 			if code == 404 {
 				message = "Endpoint not found. This incident will be reported."
 				response.Error(c, code, "ENDPOINT_NOT_FOUND", message, map[string]interface{}{
@@ -58,7 +53,6 @@ func New(cfg *config.Config, l *logger.Logger, b *monitoring.LogBroadcaster) *Se
 				return
 			}
 
-			// For other HTTP errors, use the original message if it's a string
 			if msg, ok := he.Message.(string); ok {
 				message = msg
 			} else {
@@ -68,7 +62,6 @@ func New(cfg *config.Config, l *logger.Logger, b *monitoring.LogBroadcaster) *Se
 			return
 		}
 
-		// For non-HTTP errors, return internal server error
 		response.InternalServerError(c, "An unexpected error occurred")
 	}
 
@@ -81,27 +74,113 @@ func New(cfg *config.Config, l *logger.Logger, b *monitoring.LogBroadcaster) *Se
 }
 
 func (s *Server) Start() error {
-	// Initialize async infrastructure manager
 	s.infraInitManager = infrastructure.NewInfraInitManager(s.logger)
 
-	// 1. Start Async Infrastructure Initialization (doesn't block)
 	s.logger.Info("Starting async infrastructure initialization...")
-	redisManager, kafkaManager, _, postgresConnectionManager, mongoConnectionManager, grafanaManager, cronManager :=
-		s.infraInitManager.StartAsyncInitialization(s.config, s.logger)
+	componentRegistry := s.infraInitManager.StartAsyncInitialization(s.config, s.logger)
 
-	// Create dependencies container
+	// Get components from registry
+	redisManager, _ := componentRegistry.Get("redis")
+	kafkaManager, _ := componentRegistry.Get("kafka")
+	minioManager, _ := componentRegistry.Get("minio")
+	postgresManager, _ := componentRegistry.Get("postgres")
+	mongoManager, _ := componentRegistry.Get("mongo")
+	grafanaManager, _ := componentRegistry.Get("grafana")
+	cronManager, _ := componentRegistry.Get("cron")
+
+	// Type assert to get the concrete types
+	var redisMgr *infrastructure.RedisManager
+	var kafkaMgr *infrastructure.KafkaManager
+	var minioMgr *infrastructure.MinIOManager
+	var postgresConnMgr *infrastructure.PostgresConnectionManager
+	var mongoConnMgr *infrastructure.MongoConnectionManager
+	var grafanaMgr *infrastructure.GrafanaManager
+	var cronMgr *infrastructure.CronManager
+
+	if rm, ok := redisManager.(*infrastructure.RedisManager); ok {
+		redisMgr = rm
+	}
+	if km, ok := kafkaManager.(*infrastructure.KafkaManager); ok {
+		kafkaMgr = km
+	}
+	if mm, ok := minioManager.(*infrastructure.MinIOManager); ok {
+		minioMgr = mm
+	}
+	if pm, ok := postgresManager.(*infrastructure.PostgresConnectionManager); ok {
+		postgresConnMgr = pm
+	} else if _, ok := postgresManager.(*infrastructure.PostgresManager); ok {
+		// Handle single connection case
+		s.logger.Info("PostgreSQL single connection manager detected")
+	}
+	if mm, ok := mongoManager.(*infrastructure.MongoConnectionManager); ok {
+		mongoConnMgr = mm
+	} else if _, ok := mongoManager.(*infrastructure.MongoManager); ok {
+		// Handle single connection case
+		s.logger.Info("MongoDB single connection manager detected")
+	}
+	if gm, ok := grafanaManager.(*infrastructure.GrafanaManager); ok {
+		grafanaMgr = gm
+	}
+	if cm, ok := cronManager.(*infrastructure.CronManager); ok {
+		cronMgr = cm
+	}
+
 	s.dependencies = registry.NewDependencies(
-		redisManager,
-		kafkaManager,
-		nil, // Will be set from connection manager
-		postgresConnectionManager,
-		nil, // Will be set from connection manager
-		mongoConnectionManager,
-		grafanaManager,
-		cronManager,
+		redisMgr,
+		kafkaMgr,
+		nil,
+		postgresConnMgr,
+		nil,
+		mongoConnMgr,
+		grafanaMgr,
+		cronMgr,
+		minioMgr,
 	)
 
-	// Set default connections for backward compatibility
+	s.setConnectionDefaults(postgresConnMgr, mongoConnMgr)
+
+	s.logger.Info("Initializing Middleware...")
+	middleware.InitMiddlewares(s.echo, middleware.Config{
+		AuthType: s.config.Auth.Type,
+		Logger:   s.logger,
+	})
+
+	if s.config.Encryption.Enabled {
+		s.logger.Info("Initializing Encryption Middleware...")
+		s.echo.Use(middleware.EncryptionMiddleware(s.config, s.logger))
+	}
+
+	s.logger.Info("Booting Services...")
+	serviceRegistry := registry.NewServiceRegistry(s.logger)
+
+	s.registerHealthEndpoints()
+	services := registry.AutoDiscoverServices(s.config, s.logger, s.dependencies)
+
+	for _, service := range services {
+		serviceRegistry.Register(service)
+	}
+
+	if len(services) <= 0 {
+		s.logger.Warn("No services registered!")
+	}
+
+	serviceRegistry.Boot(s.echo)
+	s.logger.Info("All services boot successfully, ready to start monitoring")
+
+	if s.config.Monitoring.Enabled {
+		servicesList := s.buildServicesList(serviceRegistry)
+		go monitoring.Start(s.config.Monitoring, s.config, s, s.broadcaster, redisMgr, s.dependencies.PostgresManager, postgresConnMgr, s.dependencies.MongoManager, mongoConnMgr, kafkaMgr, cronMgr, servicesList, s.logger)
+		s.logger.Info("Monitoring interface started", "port", s.config.Monitoring.Port, "services_count", len(servicesList))
+	}
+
+	port := s.config.Server.Port
+	s.logger.Info("HTTP server starting immediately", "port", port, "env", s.config.App.Env)
+	s.logger.Info("Infrastructure components initializing in background...")
+
+	return s.echo.Start(":" + port)
+}
+
+func (s *Server) setConnectionDefaults(postgresConnectionManager *infrastructure.PostgresConnectionManager, mongoConnectionManager *infrastructure.MongoConnectionManager) {
 	if postgresConnectionManager != nil {
 		if defaultConn, exists := postgresConnectionManager.GetDefaultConnection(); exists {
 			s.dependencies.PostgresManager = defaultConn
@@ -112,42 +191,22 @@ func (s *Server) Start() error {
 			s.dependencies.MongoManager = defaultConn
 		}
 	}
+}
 
-	// 2. Init Middleware (synchronous, lightweight)
-	s.logger.Info("Initializing Middleware...")
-	middleware.InitMiddlewares(s.echo, middleware.Config{
-		AuthType: s.config.Auth.Type,
-		Logger:   s.logger,
-	})
-
-	// Add encryption middleware if enabled
-	if s.config.Encryption.Enabled {
-		s.logger.Info("Initializing Encryption Middleware...")
-		s.echo.Use(middleware.EncryptionMiddleware(s.config, s.logger))
-	}
-
-	// 3. Init Services (phased: independent first, then infrastructure-dependent)
-	s.logger.Info("Booting Services...")
-	serviceRegistry := registry.NewServiceRegistry(s.logger)
-
-	// Health Check Endpoint with infrastructure status
+func (s *Server) registerHealthEndpoints() {
 	s.echo.GET("/health", func(c echo.Context) error {
-		health := map[string]interface{}{
+		return response.Success(c, map[string]interface{}{
 			"status":                  "ok",
 			"server_ready":            true,
 			"infrastructure":          s.infraInitManager.GetStatus(),
 			"initialization_progress": s.infraInitManager.GetInitializationProgress(),
-		}
-		return response.Success(c, health)
+		})
 	})
 
-	// Infrastructure status endpoint
 	s.echo.GET("/health/infrastructure", func(c echo.Context) error {
-		status := s.infraInitManager.GetStatus()
-		return response.Success(c, status)
+		return response.Success(c, s.infraInitManager.GetStatus())
 	})
 
-	// Restart Endpoint (Maintenance)
 	s.echo.POST("/restart", func(c echo.Context) error {
 		go func() {
 			time.Sleep(500 * time.Millisecond)
@@ -155,52 +214,24 @@ func (s *Server) Start() error {
 		}()
 		return response.Success(c, map[string]string{"status": "restarting", "message": "Service is restarting..."})
 	})
+}
 
-	// Auto-discover and register all services
-	s.logger.Info("Auto-discovering services...")
-	services := registry.AutoDiscoverServices(s.config, s.logger, s.dependencies)
-
-	// Register services with the registry
-	for _, service := range services {
-		serviceRegistry.Register(service)
-	}
-
-	if len(services) <= 0 {
-		s.logger.Warn("No services registered!")
-	}
-
-	// Boot all services
-	serviceRegistry.Boot(s.echo)
-	s.logger.Info("All services boot successfully, ready to start monitoring")
-
-	// 4. Start Monitoring (if enabled) - after all services are registered
-	if s.config.Monitoring.Enabled {
-		// Dynamic Service List Generation
-		var servicesList []monitoring.ServiceInfo
-		for _, srv := range serviceRegistry.GetServices() {
-			// Prepend /api/v1 to endpoints
-			var fullEndpoints []string
-			for _, endp := range srv.Endpoints() {
-				fullEndpoints = append(fullEndpoints, "/api/v1"+endp)
-			}
-
-			servicesList = append(servicesList, monitoring.ServiceInfo{
-				Name:       srv.Name(),
-				StructName: reflect.TypeOf(srv).Elem().String(),
-				Active:     srv.Enabled(),
-				Endpoints:  fullEndpoints,
-			})
+func (s *Server) buildServicesList(serviceRegistry *registry.ServiceRegistry) []monitoring.ServiceInfo {
+	var servicesList []monitoring.ServiceInfo
+	for _, srv := range serviceRegistry.GetServices() {
+		var fullEndpoints []string
+		for _, endp := range srv.Endpoints() {
+			fullEndpoints = append(fullEndpoints, "/api/v1"+endp)
 		}
-		go monitoring.Start(s.config.Monitoring, s.config, s, s.broadcaster, redisManager, s.dependencies.PostgresManager, postgresConnectionManager, s.dependencies.MongoManager, mongoConnectionManager, kafkaManager, cronManager, servicesList, s.logger)
-		s.logger.Info("Monitoring interface started", "port", s.config.Monitoring.Port, "services_count", len(servicesList))
+
+		servicesList = append(servicesList, monitoring.ServiceInfo{
+			Name:       srv.Name(),
+			StructName: reflect.TypeOf(srv).Elem().String(),
+			Active:     srv.Enabled(),
+			Endpoints:  fullEndpoints,
+		})
 	}
-
-	// 5. Start HTTP Server immediately (doesn't wait for infrastructure)
-	port := s.config.Server.Port
-	s.logger.Info("HTTP server starting immediately", "port", port, "env", s.config.App.Env)
-	s.logger.Info("Infrastructure components initializing in background...")
-
-	return s.echo.Start(":" + port)
+	return servicesList
 }
 
 // GetStatus satisfies monitoring.StatusProvider
@@ -208,18 +239,23 @@ func (s *Server) GetStatus() map[string]interface{} {
 	diskStats, _ := utils.GetDiskUsage()
 	netStats, _ := utils.GetNetworkInfo()
 
+	checkEnabled := func(enabled bool, manager interface{}) bool {
+		return enabled && s.dependencies != nil && manager != nil
+	}
+
 	infra := map[string]bool{
-		"redis":    s.config.Redis.Enabled && s.dependencies != nil && s.dependencies.RedisManager != nil,
-		"kafka":    s.config.Kafka.Enabled && s.dependencies != nil && s.dependencies.KafkaManager != nil,
-		"postgres": (s.config.Postgres.Enabled || s.config.PostgresMultiConfig.Enabled) && (s.dependencies != nil && s.dependencies.PostgresManager != nil),
-		"mongo":    (s.config.Mongo.Enabled || s.config.MongoMultiConfig.Enabled) && (s.dependencies != nil && s.dependencies.MongoManager != nil),
-		"grafana":  s.config.Grafana.Enabled && s.dependencies != nil && s.dependencies.GrafanaManager != nil,
-		"cron":     s.config.Cron.Enabled && s.dependencies != nil && s.dependencies.CronManager != nil,
+		"redis":    checkEnabled(s.config.Redis.Enabled, s.dependencies.RedisManager),
+		"kafka":    checkEnabled(s.config.Kafka.Enabled, s.dependencies.KafkaManager),
+		"postgres": checkEnabled(s.config.Postgres.Enabled || s.config.PostgresMultiConfig.Enabled, s.dependencies.PostgresManager),
+		"mongo":    checkEnabled(s.config.Mongo.Enabled || s.config.MongoMultiConfig.Enabled, s.dependencies.MongoManager),
+		"grafana":  checkEnabled(s.config.Grafana.Enabled, s.dependencies.GrafanaManager),
+		"cron":     checkEnabled(s.config.Cron.Enabled, s.dependencies.CronManager),
+		"minio":    checkEnabled(s.config.MinIO.Enabled, s.dependencies.MinIOManager),
 	}
 
 	return map[string]interface{}{
 		"version":        "1.0.0",
-		"services":       s.config.Services, // Dynamic map from config
+		"services":       s.config.Services,
 		"infrastructure": infra,
 		"system": map[string]interface{}{
 			"disk":    diskStats,
@@ -232,85 +268,50 @@ func (s *Server) GetStatus() map[string]interface{} {
 func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 	logger.Info("Starting graceful shutdown of infrastructure...")
 
-	// Force shutdown when more 10s
 	go func() {
-		warnTimeout := "Maximum shutdown time is 20s, force shutdown when timeout."
-		warnForce := "Graceful shutdown timed out, force shutdown."
-		duration := 10 * time.Second
-
+		time.Sleep(10 * time.Second)
 		if logger != nil {
-			logger.Warn(warnTimeout)
-			time.Sleep(duration)
-			logger.Fatal(warnForce, nil)
+			logger.Warn("Maximum shutdown time is 20s, force shutdown when timeout.")
+			logger.Fatal("Graceful shutdown timed out, force shutdown.", nil)
 		}
-
-		fmt.Println(warnTimeout)
-		time.Sleep(duration)
+		fmt.Println("Maximum shutdown time is 20s, force shutdown when timeout.")
 		os.Exit(1)
-
 	}()
 
-	// Stop async initialization manager
 	if s.infraInitManager != nil {
 		logger.Info("Stopping async infrastructure initialization manager...")
-		// Note: InfraInitManager doesn't have a Close method, but we can signal completion
 	}
 
-	// Shutdown infrastructure components in reverse order of initialization
 	var shutdownErrors []error
 
-	// 1. Cron Manager
-	if s.dependencies != nil && s.dependencies.CronManager != nil {
-		logger.Info("Shutting down Cron Manager...")
-		if err := s.dependencies.CronManager.Close(); err != nil {
-			shutdownErrors = append(shutdownErrors, fmt.Errorf("cron manager shutdown error: %w", err))
-			logger.Error("Error shutting down Cron Manager", err)
-		} else {
-			logger.Info("Cron Manager shut down successfully")
+	shutdownComponent := func(name string, closer interface{}) {
+		if closer == nil {
+			return
+		}
+		logger.Info("Shutting down " + name + "...")
+		if closerCloser, ok := closer.(interface{ Close() error }); ok {
+			if err := closerCloser.Close(); err != nil {
+				shutdownErrors = append(shutdownErrors, fmt.Errorf("%s shutdown error: %w", name, err))
+				logger.Error("Error shutting down "+name, err)
+			} else {
+				logger.Info(name + " shut down successfully")
+			}
 		}
 	}
 
-	// 2. MongoDB connections - need to get from connection manager
-	// Note: We don't have direct access to connection managers anymore,
-	// but they should be closed by the infra init manager
+	shutdownComponent("Cron Manager", s.dependencies.CronManager)
 	logger.Info("MongoDB connections will be closed by infrastructure manager")
-
-	// 3. PostgreSQL connections - need to get from connection manager
-	// Note: We don't have direct access to connection managers anymore,
-	// but they should be closed by the infra init manager
 	logger.Info("PostgreSQL connections will be closed by infrastructure manager")
+	shutdownComponent("Kafka Manager", s.dependencies.KafkaManager)
+	shutdownComponent("Redis Manager", s.dependencies.RedisManager)
 
-	// 4. Kafka Manager
-	if s.dependencies != nil && s.dependencies.KafkaManager != nil {
-		logger.Info("Shutting down Kafka Manager...")
-		if err := s.dependencies.KafkaManager.Close(); err != nil {
-			shutdownErrors = append(shutdownErrors, fmt.Errorf("kafka manager shutdown error: %w", err))
-			logger.Error("Error shutting down Kafka Manager", err)
-		} else {
-			logger.Info("Kafka Manager shut down successfully")
-		}
-	}
-
-	// 5. Redis Manager
-	if s.dependencies != nil && s.dependencies.RedisManager != nil {
-		logger.Info("Shutting down Redis Manager...")
-		if err := s.dependencies.RedisManager.Close(); err != nil {
-			shutdownErrors = append(shutdownErrors, fmt.Errorf("redis manager shutdown error: %w", err))
-			logger.Error("Error shutting down Redis Manager", err)
-		} else {
-			logger.Info("Redis Manager shut down successfully")
-		}
-	}
-
-	// Log shutdown summary
 	if len(shutdownErrors) > 0 {
 		logger.Warn("Graceful shutdown completed with errors", "error_count", len(shutdownErrors))
 		for _, err := range shutdownErrors {
 			logger.Error("Shutdown error", err)
 		}
 		return fmt.Errorf("shutdown completed with %d errors", len(shutdownErrors))
-	} else {
-		logger.Info("Graceful shutdown completed successfully")
-		return nil
 	}
+	logger.Info("Graceful shutdown completed successfully")
+	return nil
 }

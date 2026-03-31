@@ -15,6 +15,9 @@ type ServiceFactory func(config *config.Config, logger *logger.Logger, deps *Dep
 // Global registry of service factories
 var serviceFactories = make(map[string]ServiceFactory)
 
+// Global registry of discovered service
+var serviceDiscovered = make(map[string]interface{})
+
 // RegisterService registers a service factory for automatic discovery
 func RegisterService(name string, factory ServiceFactory) {
 	serviceFactories[name] = factory
@@ -34,6 +37,8 @@ func AutoDiscoverServices(
 			if service := factory(config, logger, deps); service != nil {
 				services = append(services, service)
 				logger.Info("Auto-registered service", "service", name)
+
+				serviceDiscovered[service.Name()] = service.Get()
 			} else {
 				logger.Warn("Service factory returned nil", "service", name)
 			}
@@ -62,6 +67,10 @@ func NewServiceRegistry(logger *logger.Logger) *ServiceRegistry {
 // GetServiceFactories returns the global service factories map for testing/debugging
 func GetServiceFactories() map[string]ServiceFactory {
 	return serviceFactories
+}
+
+func GetService(name string) interface{} {
+	return serviceDiscovered[name]
 }
 
 // Register adds a service to the registry
