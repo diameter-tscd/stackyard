@@ -5,7 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Server",
+            "name": "Launch Package (Darwin)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/app/main.go",
+            "output": "${workspaceFolder}/stackyard"
+        },
+        {
+            "name": "Launch Server (Unix)",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -13,7 +21,7 @@
             "output": "${workspaceFolder}\\debug-main.exe"
         },
         {
-            "name": "Build & Launch (Dist)",
+            "name": "Build & Launch Dist (Unix)",
             "type": "go",
             "request": "launch",
             "mode": "exec",

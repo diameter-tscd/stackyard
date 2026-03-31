@@ -44,6 +44,7 @@ type Config struct {
 	Grafana             GrafanaConfig       `mapstructure:"grafana"`
 	Monitoring          MonitoringConfig    `mapstructure:"monitoring"`
 	Cron                CronConfig          `mapstructure:"cron"`
+	MinIO               MinIOConfig         `mapstructure:"minio"`
 	Encryption          EncryptionConfig    `mapstructure:"encryption"`
 }
 

@@ -177,7 +177,7 @@ func (d *DialogModel) View(width, height int) string {
 		if d.config.Content != "" {
 			dialogContent.WriteString(d.config.Content)
 		} else {
-			dialogContent.WriteString("Enter: confirm │ Esc: cancel")
+			dialogContent.WriteString("Enter: confirm ● Esc: cancel")
 		}
 	}
 
@@ -254,7 +254,7 @@ func NewInputDialog(title, prompt, defaultValue string) *DialogModel {
 		Title:        title,
 		InputPrompt:  prompt,
 		DefaultValue: defaultValue,
-		Content:      "Enter: confirm │ Esc: cancel",
+		Content:      "Enter: confirm ● Esc: cancel",
 	})
 }
 

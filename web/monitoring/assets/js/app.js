@@ -27,6 +27,256 @@ window.notyf = new Notyf({
     ]
 });
 
+// Lazy Loading System
+window.lazyLoader = {
+    // Track loaded resources
+    loaded: new Set(),
+    loading: new Set(),
+
+    // Lazy load CodeMirror for specific tabs
+    loadCodeMirrorForTab(tabId) {
+        if (this.loaded.has(`codemirror-${tabId}`)) return Promise.resolve();
+
+        return new Promise((resolve) => {
+            // Check if CodeMirror is already loaded
+            if (typeof CodeMirror !== 'undefined') {
+                this.loaded.add(`codemirror-${tabId}`);
+                resolve();
+                return;
+            }
+
+            if (this.loading.has('codemirror')) {
+                // Wait for existing load
+                const checkLoaded = setInterval(() => {
+                    if (typeof CodeMirror !== 'undefined') {
+                        clearInterval(checkLoaded);
+                        this.loaded.add(`codemirror-${tabId}`);
+                        resolve();
+                    }
+                }, 100);
+                return;
+            }
+
+            this.loading.add('codemirror');
+
+            // Load CodeMirror CSS
+            const cssLink = document.createElement('link');
+            cssLink.rel = 'stylesheet';
+            cssLink.href = '/assets/vendor/codemirror/codemirror.min.css';
+            document.head.appendChild(cssLink);
+
+            // Load CodeMirror JS
+            const script = document.createElement('script');
+            script.src = '/assets/vendor/codemirror/codemirror.min.js';
+            script.onload = () => {
+                this.loading.delete('codemirror');
+                this.loaded.add(`codemirror-${tabId}`);
+                resolve();
+            };
+            document.head.appendChild(script);
+        });
+    },
+
+    // Lazy load tab-specific resources
+    async loadTabResources(tabId) {
+        switch (tabId) {
+            case 'config':
+            case 'banner':
+            case 'postgres':
+            case 'mongo':
+                await this.loadCodeMirrorForTab(tabId);
+                break;
+            case 'system':
+                await this.loadChartLibraries();
+                break;
+            case 'external':
+                await this.loadExternalLibraries();
+                break;
+            // Add more cases for other tabs that need lazy loading
+        }
+    },
+
+    // Lazy load chart libraries for system monitoring
+    loadChartLibraries() {
+        return new Promise((resolve) => {
+            if (this.loaded.has('charts')) {
+                resolve();
+                return;
+            }
+
+            if (this.loading.has('charts')) {
+                // Wait for existing load
+                const checkLoaded = setInterval(() => {
+                    if (this.loaded.has('charts')) {
+                        clearInterval(checkLoaded);
+                        resolve();
+                    }
+                }, 100);
+                return;
+            }
+
+            this.loading.add('charts');
+            // Charts are already inline SVG, so just mark as loaded
+            this.loaded.add('charts');
+            resolve();
+        });
+    },
+
+    // Lazy load external service libraries
+    loadExternalLibraries() {
+        return new Promise((resolve) => {
+            if (this.loaded.has('external')) {
+                resolve();
+                return;
+            }
+
+            if (this.loading.has('external')) {
+                // Wait for existing load
+                const checkLoaded = setInterval(() => {
+                    if (this.loaded.has('external')) {
+                        clearInterval(checkLoaded);
+                        resolve();
+                    }
+                }, 100);
+                return;
+            }
+
+            this.loading.add('external');
+            // External services use basic fetch, no additional libraries needed
+            this.loaded.add('external');
+            resolve();
+        });
+    },
+
+    // Lazy load images with progressive enhancement
+    lazyLoadImage(imgElement) {
+        if (!imgElement || imgElement.hasAttribute('data-loaded')) return;
+
+        const src = imgElement.getAttribute('data-src');
+        if (!src) return;
+
+        // Create a small blurred placeholder
+        const placeholder = document.createElement('div');
+        placeholder.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: inherit;
+        `;
+
+        // Add loading animation CSS if not exists
+        if (!document.getElementById('lazy-loading-styles')) {
+            const style = document.createElement('style');
+            style.id = 'lazy-loading-styles';
+            style.textContent = `
+                @keyframes loading {
+                    0% { background-position: 200% 0; }
+                    100% { background-position: -200% 0; }
+                }
+                .lazy-loading {
+                    position: relative;
+                    overflow: hidden;
+                }
+                .lazy-loading img {
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                }
+                .lazy-loading img.loaded {
+                    opacity: 1;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        imgElement.parentNode.classList.add('lazy-loading');
+        imgElement.parentNode.appendChild(placeholder);
+
+        const img = new Image();
+        img.onload = () => {
+            placeholder.remove();
+            imgElement.src = src;
+            imgElement.classList.add('loaded');
+            imgElement.setAttribute('data-loaded', 'true');
+        };
+        img.onerror = () => {
+            placeholder.remove();
+            imgElement.setAttribute('data-loaded', 'error');
+        };
+        img.src = src;
+    },
+
+    // Initialize Intersection Observer for general lazy loading
+    initIntersectionObserver() {
+        if (!('IntersectionObserver' in window)) return;
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const element = entry.target;
+
+                    // Handle lazy images
+                    if (element.tagName === 'IMG' && element.hasAttribute('data-src')) {
+                        this.lazyLoadImage(element);
+                        observer.unobserve(element);
+                    }
+
+                    // Handle lazy background images
+                    if (element.hasAttribute('data-bg')) {
+                        element.style.backgroundImage = `url(${element.getAttribute('data-bg')})`;
+                        element.removeAttribute('data-bg');
+                        observer.unobserve(element);
+                    }
+
+                    // Handle lazy content loading
+                    if (element.hasAttribute('data-lazy-content')) {
+                        const contentType = element.getAttribute('data-lazy-content');
+                        this.loadLazyContent(element, contentType);
+                        observer.unobserve(element);
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Observe lazy elements
+        document.querySelectorAll('[data-src], [data-bg], [data-lazy-content]').forEach(el => {
+            observer.observe(el);
+        });
+
+        return observer;
+    },
+
+    // Load lazy content based on type
+    loadLazyContent(element, contentType) {
+        switch (contentType) {
+            case 'heavy-table':
+                // Simulate loading heavy table data
+                element.innerHTML = '<div class="animate-pulse"><div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div><div class="h-4 bg-gray-200 rounded w-1/2"></div></div>';
+                setTimeout(() => {
+                    element.innerHTML = '<div class="text-sm text-muted-foreground">Content loaded lazily</div>';
+                }, 500);
+                break;
+            case 'chart':
+                // Lazy load chart content
+                element.innerHTML = '<div class="flex items-center justify-center h-32"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>';
+                setTimeout(() => {
+                    element.innerHTML = '<div class="text-sm text-muted-foreground">Chart loaded lazily</div>';
+                }, 800);
+                break;
+        }
+    }
+};
+
 // --- API Obfuscation Handler ---
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
@@ -182,7 +432,6 @@ function app() {
         ],
 
         // Dashboard Data
-        // Dashboard Data
         serviceCount: 0,
         cpuUsage: 0,
         logs: [],
@@ -191,9 +440,9 @@ function app() {
         dummyLogActive: false,
         cronJobs: [],
         appConfig: {},
-        configContent: '', // New
+        configContent: '',
         bannerContent: '',
-        monitoringConfig: { title: 'GoBP Admin', subtitle: 'Go Echo Boilerplate' }, // New
+        monitoringConfig: { title: 'Stackyard Admin', subtitle: 'Monitoring Dashboard' },
 
         // User Settings
         userSettings: { username: '', photoPath: '' },
@@ -287,7 +536,10 @@ function app() {
                 document.documentElement.classList.remove('dark');
             }
 
-
+            // Initialize lazy loading system
+            if (window.lazyLoader) {
+                window.lazyLoader.initIntersectionObserver();
+            }
 
             // Initialize CodeMirror after Alpine mounts
             this.$nextTick(async () => {

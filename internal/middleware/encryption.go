@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"test-go/config"
-	"test-go/pkg/logger"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 
 	"github.com/labstack/echo/v4"
 )

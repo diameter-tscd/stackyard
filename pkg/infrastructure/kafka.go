@@ -3,8 +3,8 @@ package infrastructure
 import (
 	"context"
 	"fmt"
-	"test-go/config"
-	"test-go/pkg/logger"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 
 	"github.com/IBM/sarama"
 )
@@ -15,6 +15,11 @@ type KafkaManager struct {
 	GroupID  string
 	logger   *logger.Logger
 	Pool     *WorkerPool // Async worker pool
+}
+
+// Name returns the display name of the component
+func (k *KafkaManager) Name() string {
+	return "Kafka"
 }
 
 func NewKafkaManager(cfg config.KafkaConfig, logger *logger.Logger) (*KafkaManager, error) {
@@ -210,4 +215,13 @@ func (k *KafkaManager) Close() error {
 		return k.Producer.Close()
 	}
 	return nil
+}
+
+func init() {
+	RegisterComponent("kafka", func(cfg *config.Config, log *logger.Logger) (InfrastructureComponent, error) {
+		if !cfg.Kafka.Enabled {
+			return nil, nil
+		}
+		return NewKafkaManager(cfg.Kafka, log)
+	})
 }

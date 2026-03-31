@@ -1,10 +1,10 @@
 package monitoring
 
 import (
+	"stackyard/internal/monitoring/database"
+	"stackyard/internal/monitoring/session"
+	"stackyard/pkg/response"
 	"strings"
-	"test-go/internal/monitoring/database"
-	"test-go/internal/monitoring/session"
-	"test-go/pkg/response"
 	"time"
 
 	"github.com/labstack/echo/v4"

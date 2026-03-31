@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 	"strings"
-	"test-go/config"
-	"test-go/pkg/logger"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -171,6 +171,11 @@ type GrafanaAnnotation struct {
 	Tags        []string               `json:"tags,omitempty"`
 	Text        string                 `json:"text"`
 	Data        map[string]interface{} `json:"data,omitempty"`
+}
+
+// Name returns the display name of the component
+func (gm *GrafanaManager) Name() string {
+	return "Grafana"
 }
 
 // NewGrafanaManager creates a new Grafana manager
@@ -661,4 +666,13 @@ func (gm *GrafanaManager) Close() error {
 		gm.Pool.Close()
 	}
 	return nil
+}
+
+func init() {
+	RegisterComponent("grafana", func(cfg *config.Config, l *logger.Logger) (InfrastructureComponent, error) {
+		if !cfg.Grafana.Enabled {
+			return nil, nil
+		}
+		return NewGrafanaManager(cfg.Grafana, l)
+	})
 }
