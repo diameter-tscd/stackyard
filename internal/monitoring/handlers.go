@@ -14,25 +14,83 @@ import (
 )
 
 type Handler struct {
-	config                    *config.Config
-	statusProvider            StatusProvider
-	broadcaster               *LogBroadcaster
-	redis                     *infrastructure.RedisManager
-	postgres                  *infrastructure.PostgresManager
-	postgresConnectionManager *infrastructure.PostgresConnectionManager
-	mongo                     *infrastructure.MongoManager
-	mongoConnectionManager    *infrastructure.MongoConnectionManager
-	kafka                     *infrastructure.KafkaManager
-	cron                      *infrastructure.CronManager
-	minio                     *infrastructure.MinIOManager
-	system                    *infrastructure.SystemManager
-	http                      *infrastructure.HttpManager
-	services                  []ServiceInfo
+	config         *config.Config
+	statusProvider StatusProvider
+	broadcaster    *LogBroadcaster
+	registry       *infrastructure.ComponentRegistry
+	minio          *infrastructure.MinIOManager
+	system         *infrastructure.SystemManager
+	http           *infrastructure.HttpManager
+	services       []ServiceInfo
 
 	// Dummy Logs
 	dummyMu     sync.Mutex
 	dummyActive bool
 	dummyStop   chan struct{}
+}
+
+// Helper methods for dynamic infrastructure access
+func (h *Handler) getRedis() *infrastructure.RedisManager {
+	if comp, ok := h.registry.Get("redis"); ok {
+		if rm, ok := comp.(*infrastructure.RedisManager); ok {
+			return rm
+		}
+	}
+	return nil
+}
+
+func (h *Handler) getPostgres() *infrastructure.PostgresManager {
+	if comp, ok := h.registry.Get("postgres"); ok {
+		if pm, ok := comp.(*infrastructure.PostgresManager); ok {
+			return pm
+		}
+	}
+	return nil
+}
+
+func (h *Handler) getPostgresConnectionManager() *infrastructure.PostgresConnectionManager {
+	if comp, ok := h.registry.Get("postgres"); ok {
+		if pcm, ok := comp.(*infrastructure.PostgresConnectionManager); ok {
+			return pcm
+		}
+	}
+	return nil
+}
+
+func (h *Handler) getMongo() *infrastructure.MongoManager {
+	if comp, ok := h.registry.Get("mongo"); ok {
+		if mm, ok := comp.(*infrastructure.MongoManager); ok {
+			return mm
+		}
+	}
+	return nil
+}
+
+func (h *Handler) getMongoConnectionManager() *infrastructure.MongoConnectionManager {
+	if comp, ok := h.registry.Get("mongo"); ok {
+		if mcm, ok := comp.(*infrastructure.MongoConnectionManager); ok {
+			return mcm
+		}
+	}
+	return nil
+}
+
+func (h *Handler) getKafka() *infrastructure.KafkaManager {
+	if comp, ok := h.registry.Get("kafka"); ok {
+		if km, ok := comp.(*infrastructure.KafkaManager); ok {
+			return km
+		}
+	}
+	return nil
+}
+
+func (h *Handler) getCron() *infrastructure.CronManager {
+	if comp, ok := h.registry.Get("cron"); ok {
+		if cm, ok := comp.(*infrastructure.CronManager); ok {
+			return cm
+		}
+	}
+	return nil
 }
 
 func (h *Handler) RegisterRoutes(g *echo.Group) {
@@ -164,14 +222,22 @@ func (h *Handler) runDummyLogs(stop chan struct{}) {
 func (h *Handler) getStatus(c echo.Context) error {
 	// Collect status from all sources
 	status := h.statusProvider.GetStatus()
-	status["redis"] = h.redis.GetStatus()
+
+	// Redis status
+	if redis := h.getRedis(); redis != nil {
+		status["redis"] = redis.GetStatus()
+	} else {
+		status["redis"] = map[string]interface{}{"connected": false}
+	}
 
 	// Handle both single and multiple PostgreSQL connections
-	if h.postgresConnectionManager != nil || (h.config.PostgresMultiConfig.Enabled && len(h.config.PostgresMultiConfig.Connections) > 0) {
+	postgresConnMgr := h.getPostgresConnectionManager()
+	postgres := h.getPostgres()
+	if postgresConnMgr != nil || (h.config.PostgresMultiConfig.Enabled && len(h.config.PostgresMultiConfig.Connections) > 0) {
 		// For multiple connections, format the status for frontend compatibility
 		var pgStatus map[string]interface{}
-		if h.postgresConnectionManager != nil {
-			pgStatus = h.postgresConnectionManager.GetStatus()
+		if postgresConnMgr != nil {
+			pgStatus = postgresConnMgr.GetStatus()
 		} else {
 			pgStatus = make(map[string]interface{})
 		}
@@ -207,19 +273,34 @@ func (h *Handler) getStatus(c echo.Context) error {
 			"connected":   anyConnected,
 			"connections": connectionStatuses,
 		}
+	} else if postgres != nil {
+		status["postgres"] = postgres.GetStatus()
 	} else {
-		status["postgres"] = h.postgres.GetStatus()
+		status["postgres"] = map[string]interface{}{"connected": false}
 	}
 
-	status["kafka"] = h.kafka.GetStatus()
-	status["cron"] = h.cron.GetStatus()
+	// Kafka status
+	if kafka := h.getKafka(); kafka != nil {
+		status["kafka"] = kafka.GetStatus()
+	} else {
+		status["kafka"] = map[string]interface{}{"connected": false}
+	}
+
+	// Cron status
+	if cron := h.getCron(); cron != nil {
+		status["cron"] = cron.GetStatus()
+	} else {
+		status["cron"] = map[string]interface{}{"active": false, "jobs": []interface{}{}}
+	}
 
 	// Handle both single and multiple MongoDB connections
-	if h.mongoConnectionManager != nil || (h.config.MongoMultiConfig.Enabled && len(h.config.MongoMultiConfig.Connections) > 0) {
+	mongoConnMgr := h.getMongoConnectionManager()
+	mongo := h.getMongo()
+	if mongoConnMgr != nil || (h.config.MongoMultiConfig.Enabled && len(h.config.MongoMultiConfig.Connections) > 0) {
 		// For multiple connections, format the status for frontend compatibility
 		var mongoStatus map[string]interface{}
-		if h.mongoConnectionManager != nil {
-			mongoStatus = h.mongoConnectionManager.GetStatus()
+		if mongoConnMgr != nil {
+			mongoStatus = mongoConnMgr.GetStatus()
 		} else {
 			mongoStatus = make(map[string]interface{})
 		}
@@ -255,8 +336,10 @@ func (h *Handler) getStatus(c echo.Context) error {
 			"connected":   anyConnected,
 			"connections": connectionStatuses,
 		}
+	} else if mongo != nil {
+		status["mongo"] = mongo.GetStatus()
 	} else {
-		status["mongo"] = h.mongo.GetStatus()
+		status["mongo"] = map[string]interface{}{"connected": false}
 	}
 
 	// New Infrastructure
@@ -280,14 +363,15 @@ func (h *Handler) getEndpoints(c echo.Context) error {
 // ... existing streamLogs and streamCPU ...
 
 func (h *Handler) getRedisKeys(c echo.Context) error {
-	if h.redis == nil {
+	redis := h.getRedis()
+	if redis == nil {
 		return response.ServiceUnavailable(c, "Redis not enabled")
 	}
 	pattern := c.QueryParam("pattern")
 	if pattern == "" {
 		pattern = "*"
 	}
-	keys, err := h.redis.ScanKeys(c.Request().Context(), pattern)
+	keys, err := redis.ScanKeys(c.Request().Context(), pattern)
 	if err != nil {
 		return response.InternalServerError(c, err.Error())
 	}
@@ -303,11 +387,12 @@ func (h *Handler) Restart(c echo.Context) error {
 }
 
 func (h *Handler) getRedisValue(c echo.Context) error {
-	if h.redis == nil {
+	redis := h.getRedis()
+	if redis == nil {
 		return response.ServiceUnavailable(c, "Redis not enabled")
 	}
 	key := c.Param("key")
-	val, err := h.redis.GetValue(c.Request().Context(), key)
+	val, err := redis.GetValue(c.Request().Context(), key)
 	if err != nil {
 		return response.InternalServerError(c, err.Error())
 	}
@@ -324,27 +409,29 @@ func (h *Handler) getPostgresQueries(c echo.Context) error {
 	connectionName := c.QueryParam("connection")
 
 	// Use connection manager if available, otherwise fallback to single connection
+	postgresConnMgr := h.getPostgresConnectionManager()
+	postgres := h.getPostgres()
 	var postgresManager *infrastructure.PostgresManager
-	if h.postgresConnectionManager != nil {
+	if postgresConnMgr != nil {
 		if connectionName != "" {
 			// Use specific connection if requested
-			if conn, exists := h.postgresConnectionManager.GetConnection(connectionName); exists {
+			if conn, exists := postgresConnMgr.GetConnection(connectionName); exists {
 				postgresManager = conn
 			}
 			// If specific connection requested but not found, don't fallback
 		} else {
 			// Use default connection
-			if defaultConn, exists := h.postgresConnectionManager.GetDefaultConnection(); exists {
+			if defaultConn, exists := postgresConnMgr.GetDefaultConnection(); exists {
 				postgresManager = defaultConn
 			}
 		}
 	} else {
-		postgresManager = h.postgres
+		postgresManager = postgres
 	}
 
 	// If we have a connection manager but no connection found, try to get any available connection (only if no specific connection requested)
-	if postgresManager == nil && h.postgresConnectionManager != nil && connectionName == "" {
-		allConnections := h.postgresConnectionManager.GetAllConnections()
+	if postgresManager == nil && postgresConnMgr != nil && connectionName == "" {
+		allConnections := postgresConnMgr.GetAllConnections()
 		for _, conn := range allConnections {
 			postgresManager = conn
 			break // Use the first available connection
@@ -372,26 +459,28 @@ func (h *Handler) getPostgresInfo(c echo.Context) error {
 	connectionName := c.QueryParam("connection")
 
 	// Use connection manager if available, otherwise fallback to single connection
+	postgresConnMgr := h.getPostgresConnectionManager()
+	postgres := h.getPostgres()
 	var postgresManager *infrastructure.PostgresManager
-	if h.postgresConnectionManager != nil {
+	if postgresConnMgr != nil {
 		if connectionName != "" {
 			// Use specific connection if requested
-			if conn, exists := h.postgresConnectionManager.GetConnection(connectionName); exists {
+			if conn, exists := postgresConnMgr.GetConnection(connectionName); exists {
 				postgresManager = conn
 			}
 		} else {
 			// Use default connection
-			if defaultConn, exists := h.postgresConnectionManager.GetDefaultConnection(); exists {
+			if defaultConn, exists := postgresConnMgr.GetDefaultConnection(); exists {
 				postgresManager = defaultConn
 			}
 		}
 	} else {
-		postgresManager = h.postgres
+		postgresManager = postgres
 	}
 
 	// If we have a connection manager but no connection found, try to get any available connection (only if no specific connection requested)
-	if postgresManager == nil && h.postgresConnectionManager != nil && connectionName == "" {
-		allConnections := h.postgresConnectionManager.GetAllConnections()
+	if postgresManager == nil && postgresConnMgr != nil && connectionName == "" {
+		allConnections := postgresConnMgr.GetAllConnections()
 		for _, conn := range allConnections {
 			postgresManager = conn
 			break // Use the first available connection
@@ -423,26 +512,28 @@ func (h *Handler) runPostgresQuery(c echo.Context) error {
 	connectionName := c.QueryParam("connection")
 
 	// Use connection manager if available, otherwise fallback to single connection
+	postgresConnMgr := h.getPostgresConnectionManager()
+	postgres := h.getPostgres()
 	var postgresManager *infrastructure.PostgresManager
-	if h.postgresConnectionManager != nil {
+	if postgresConnMgr != nil {
 		if connectionName != "" {
 			// Use specific connection if requested
-			if conn, exists := h.postgresConnectionManager.GetConnection(connectionName); exists {
+			if conn, exists := postgresConnMgr.GetConnection(connectionName); exists {
 				postgresManager = conn
 			}
 		} else {
 			// Use default connection
-			if defaultConn, exists := h.postgresConnectionManager.GetDefaultConnection(); exists {
+			if defaultConn, exists := postgresConnMgr.GetDefaultConnection(); exists {
 				postgresManager = defaultConn
 			}
 		}
 	} else {
-		postgresManager = h.postgres
+		postgresManager = postgres
 	}
 
 	// If we have a connection manager but no connection found, try to get any available connection (only if no specific connection requested)
-	if postgresManager == nil && h.postgresConnectionManager != nil && connectionName == "" {
-		allConnections := h.postgresConnectionManager.GetAllConnections()
+	if postgresManager == nil && postgresConnMgr != nil && connectionName == "" {
+		allConnections := postgresConnMgr.GetAllConnections()
 		for _, conn := range allConnections {
 			postgresManager = conn
 			break // Use the first available connection
@@ -481,17 +572,19 @@ func (h *Handler) runPostgresQuery(c echo.Context) error {
 func (h *Handler) getKafkaTopics(c echo.Context) error {
 	// Placeholder: To implement true Kafka monitoring, we need Admin client in KafkaManager.
 	// For now return dummy or basic status.
-	if h.kafka == nil {
+	kafka := h.getKafka()
+	if kafka == nil {
 		return response.ServiceUnavailable(c, "Kafka not enabled")
 	}
 	return response.Success(c, nil, "Kafka monitoring requires Admin API (not implemented yet)")
 }
 
 func (h *Handler) getCronJobs(c echo.Context) error {
-	if h.cron == nil {
+	cron := h.getCron()
+	if cron == nil {
 		return response.Success(c, []interface{}{}) // Return empty if disabled
 	}
-	return response.Success(c, h.cron.GetJobs())
+	return response.Success(c, cron.GetJobs())
 }
 
 func (h *Handler) getBanner(c echo.Context) error {
@@ -626,26 +719,28 @@ func (h *Handler) getMongoInfo(c echo.Context) error {
 	connectionName := c.QueryParam("connection")
 
 	// Use connection manager if available, otherwise fallback to single connection
+	mongoConnMgr := h.getMongoConnectionManager()
+	mongo := h.getMongo()
 	var mongoManager *infrastructure.MongoManager
-	if h.mongoConnectionManager != nil {
+	if mongoConnMgr != nil {
 		if connectionName != "" {
 			// Use specific connection if requested
-			if conn, exists := h.mongoConnectionManager.GetConnection(connectionName); exists {
+			if conn, exists := mongoConnMgr.GetConnection(connectionName); exists {
 				mongoManager = conn
 			}
 		} else {
 			// Use default connection
-			if defaultConn, exists := h.mongoConnectionManager.GetDefaultConnection(); exists {
+			if defaultConn, exists := mongoConnMgr.GetDefaultConnection(); exists {
 				mongoManager = defaultConn
 			}
 		}
 	} else {
-		mongoManager = h.mongo
+		mongoManager = mongo
 	}
 
 	// If we have a connection manager but no connection found, try to get any available connection (only if no specific connection requested)
-	if mongoManager == nil && h.mongoConnectionManager != nil && connectionName == "" {
-		allConnections := h.mongoConnectionManager.GetAllConnections()
+	if mongoManager == nil && mongoConnMgr != nil && connectionName == "" {
+		allConnections := mongoConnMgr.GetAllConnections()
 		for _, conn := range allConnections {
 			mongoManager = conn
 			break // Use the first available connection
@@ -674,26 +769,28 @@ func (h *Handler) runMongoQuery(c echo.Context) error {
 	connectionName := c.QueryParam("connection")
 
 	// Use connection manager if available, otherwise fallback to single connection
+	mongoConnMgr := h.getMongoConnectionManager()
+	mongo := h.getMongo()
 	var mongoManager *infrastructure.MongoManager
-	if h.mongoConnectionManager != nil {
+	if mongoConnMgr != nil {
 		if connectionName != "" {
 			// Use specific connection if requested
-			if conn, exists := h.mongoConnectionManager.GetConnection(connectionName); exists {
+			if conn, exists := mongoConnMgr.GetConnection(connectionName); exists {
 				mongoManager = conn
 			}
 		} else {
 			// Use default connection
-			if defaultConn, exists := h.mongoConnectionManager.GetDefaultConnection(); exists {
+			if defaultConn, exists := mongoConnMgr.GetDefaultConnection(); exists {
 				mongoManager = defaultConn
 			}
 		}
 	} else {
-		mongoManager = h.mongo
+		mongoManager = mongo
 	}
 
 	// If we have a connection manager but no connection found, try to get any available connection (only if no specific connection requested)
-	if mongoManager == nil && h.mongoConnectionManager != nil && connectionName == "" {
-		allConnections := h.mongoConnectionManager.GetAllConnections()
+	if mongoManager == nil && mongoConnMgr != nil && connectionName == "" {
+		allConnections := mongoConnMgr.GetAllConnections()
 		for _, conn := range allConnections {
 			mongoManager = conn
 			break // Use the first available connection

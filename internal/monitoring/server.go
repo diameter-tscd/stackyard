@@ -26,18 +26,14 @@ type ServiceInfo struct {
 	Endpoints  []string `json:"endpoints"`
 }
 
+// Start initializes and starts the monitoring server.
+// It accepts a ComponentRegistry for dynamic infrastructure access instead of specific managers.
 func Start(
 	cfg config.MonitoringConfig,
 	appConfig *config.Config,
 	statusProvider StatusProvider,
 	broadcaster *LogBroadcaster,
-	redis *infrastructure.RedisManager,
-	postgres *infrastructure.PostgresManager,
-	postgresConnectionManager *infrastructure.PostgresConnectionManager,
-	mongo *infrastructure.MongoManager,
-	mongoConnectionManager *infrastructure.MongoConnectionManager,
-	kafka *infrastructure.KafkaManager,
-	cron *infrastructure.CronManager,
+	registry *infrastructure.ComponentRegistry,
 	services []ServiceInfo,
 	log *logger.Logger,
 ) {
@@ -117,20 +113,14 @@ func Start(
 
 	// Register API Handlers
 	h := &Handler{
-		config:                    appConfig,
-		statusProvider:            statusProvider,
-		broadcaster:               broadcaster,
-		redis:                     redis,
-		postgres:                  postgres,
-		postgresConnectionManager: postgresConnectionManager,
-		mongo:                     mongo,
-		mongoConnectionManager:    mongoConnectionManager,
-		kafka:                     kafka,
-		cron:                      cron,
-		services:                  services,
-		minio:                     minioMgr,
-		system:                    systemMgr,
-		http:                      httpMgr,
+		config:         appConfig,
+		statusProvider: statusProvider,
+		broadcaster:    broadcaster,
+		registry:       registry,
+		services:       services,
+		minio:          minioMgr,
+		system:         systemMgr,
+		http:           httpMgr,
 	}
 	h.RegisterRoutes(protected)
 

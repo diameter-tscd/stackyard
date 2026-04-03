@@ -169,7 +169,7 @@ func (s *Server) Start() error {
 
 	if s.config.Monitoring.Enabled {
 		servicesList := s.buildServicesList(serviceRegistry)
-		go monitoring.Start(s.config.Monitoring, s.config, s, s.broadcaster, redisMgr, s.dependencies.PostgresManager, postgresConnMgr, s.dependencies.MongoManager, mongoConnMgr, kafkaMgr, cronMgr, servicesList, s.logger)
+		go monitoring.Start(s.config.Monitoring, s.config, s, s.broadcaster, componentRegistry, servicesList, s.logger)
 		s.logger.Info("Monitoring interface started", "port", s.config.Monitoring.Port, "services_count", len(servicesList))
 	}
 
