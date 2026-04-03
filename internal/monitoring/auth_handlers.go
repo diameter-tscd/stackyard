@@ -1,9 +1,9 @@
 package monitoring
 
 import (
-	"stackyard/internal/monitoring/database"
-	"stackyard/internal/monitoring/session"
-	"stackyard/pkg/response"
+	"stackyrd/internal/monitoring/database"
+	"stackyrd/internal/monitoring/session"
+	"stackyrd/pkg/response"
 	"strings"
 	"time"
 

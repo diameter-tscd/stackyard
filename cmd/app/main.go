@@ -5,16 +5,16 @@ import (
 	"net/url"
 	"os"
 
-	"stackyard/pkg/utils"
+	"stackyrd/pkg/utils"
 )
 
-// @title Stackyard API
+// @title stackyrd API
 // @version 1.0
-// @description Stackyard API Documentation - A modular Go API framework
+// @description stackyrd API Documentation - A modular Go API framework
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
-// @contact.email admin@stackyard.com
+// @contact.email admin@stackyrd.com
 
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html

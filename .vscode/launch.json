@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/app/main.go",
-            "output": "${workspaceFolder}/stackyard"
+            "output": "${workspaceFolder}/stackyrd"
         },
         {
             "name": "Launch Server (Unix)",
@@ -25,7 +25,7 @@
             "type": "go",
             "request": "launch",
             "mode": "exec",
-            "program": "${workspaceFolder}\\dist\\stackyard.exe",
+            "program": "${workspaceFolder}\\dist\\stackyrd.exe",
             "cwd": "${workspaceFolder}\\dist",
             "preLaunchTask": "Build App"
         }

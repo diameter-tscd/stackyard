@@ -5,8 +5,8 @@ import (
 	"net"
 	"os"
 	"runtime"
-	"stackyard/config"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/logger"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"

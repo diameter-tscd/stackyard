@@ -2,14 +2,14 @@ package monitoring
 
 import (
 	"net/http"
-	"stackyard/config"
-	"stackyard/internal/monitoring/database"
-	"stackyard/internal/monitoring/session"
-	"stackyard/pkg/infrastructure"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/internal/monitoring/database"
+	"stackyrd/internal/monitoring/session"
+	"stackyrd/pkg/infrastructure"
+	"stackyrd/pkg/logger"
 	"time"
 
-	monMiddleware "stackyard/internal/monitoring/middleware"
+	monMiddleware "stackyrd/internal/monitoring/middleware"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"

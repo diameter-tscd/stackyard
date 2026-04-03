@@ -442,7 +442,7 @@ function app() {
         appConfig: {},
         configContent: '',
         bannerContent: '',
-        monitoringConfig: { title: 'Stackyard Admin', subtitle: 'Monitoring Dashboard' },
+        monitoringConfig: { title: 'stackyrd Admin', subtitle: 'Monitoring Dashboard' },
 
         // User Settings
         userSettings: { username: '', photoPath: '' },

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"stackyard/config"
-	"stackyard/pkg/interfaces"
-	"stackyard/pkg/logger"
-	"stackyard/pkg/registry"
-	"stackyard/pkg/response"
-	"stackyard/pkg/utils"
+	"stackyrd/config"
+	"stackyrd/pkg/interfaces"
+	"stackyrd/pkg/logger"
+	"stackyrd/pkg/registry"
+	"stackyrd/pkg/response"
+	"stackyrd/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 )

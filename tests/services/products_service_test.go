@@ -3,8 +3,8 @@ package services_test
 import (
 	"testing"
 
-	"stackyard/internal/services/modules"
-	testhelpers "stackyard/pkg/testing"
+	"stackyrd/internal/services/modules"
+	testhelpers "stackyrd/pkg/testing"
 )
 
 func TestNewProductsService(t *testing.T) {

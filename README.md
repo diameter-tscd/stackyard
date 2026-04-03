@@ -1,16 +1,16 @@
 
 <div align="center">
-  <img src=".assets/Stackyard_logo.PNG" alt="Stackyard" style="width: 50%; max-width: 400px;"/>
+  <img src=".assets/stackyrd_logo.PNG" alt="stackyrd" style="width: 50%; max-width: 400px;"/>
 </div>
 <div align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"/>
   <img src="https://img.shields.io/badge/go-1.21%2B-00ADD8.svg" alt="Go Version"/>
   <img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status"/>
-  <img src="https://img.shields.io/badge/github-diameter--tscd/stackyard-181717.svg" alt="GitHub Repo"/>
+  <img src="https://img.shields.io/badge/github-diameter--tscd/stackyrd-181717.svg" alt="GitHub Repo"/>
 </div>
 <br>
 
-Stackyard is a lightweight, production-ready application framework featuring modular architecture, comprehensive monitoring, real-time dashboards, and extensive infrastructure integrations. Built for scalability and ease of deployment.
+stackyrd is a lightweight, production-ready application framework featuring modular architecture, comprehensive monitoring, real-time dashboards, and extensive infrastructure integrations. Built for scalability and ease of deployment.
 
 ## Quick Start
 
@@ -21,8 +21,8 @@ Stackyard is a lightweight, production-ready application framework featuring mod
 
 ```bash
 # Clone the repository
-git clone https://github.com/diameter-tscd/stackyard.git
-cd stackyard
+git clone https://github.com/diameter-tscd/stackyrd.git
+cd stackyrd
 
 # Install dependencies
 go mod download
@@ -60,7 +60,7 @@ go run cmd/app/main.go
 ## Project Structure
 
 ```
-stackyard/
+stackyrd/
 ├── .github/                 # GitHub Actions CI/CD workflows
 │   └── workflows/          # Automated testing and deployment
 ├── cmd/                     # Application entry points

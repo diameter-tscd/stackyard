@@ -1,12 +1,12 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Stackyard API Documentation - A modular Go API framework",
-        "title": "Stackyard API",
+        "description": "stackyrd API Documentation - A modular Go API framework",
+        "title": "stackyrd API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",
-            "email": "admin@stackyard.com"
+            "email": "admin@stackyrd.com"
         },
         "license": {
             "name": "Apache 2.0",

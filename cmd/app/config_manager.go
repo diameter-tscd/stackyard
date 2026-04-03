@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"stackyard/config"
-	"stackyard/pkg/utils"
+	"stackyrd/config"
+	"stackyrd/pkg/utils"
 )
 
 // ConfigManager handles all configuration loading and validation

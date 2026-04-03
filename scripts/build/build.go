@@ -20,7 +20,7 @@ import (
 // Configuration variables
 var (
 	DIST_DIR   = "dist"
-	APP_NAME   = "stackyard"
+	APP_NAME   = "stackyrd"
 	MAIN_PATH  = "./cmd/app"
 	CONFIG_YML = "config.yaml"
 	BANNER_TXT = "banner.txt"

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"stackyard/config"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/logger"
 
 	"github.com/labstack/echo/v4"
 )

@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"stackyard/internal/monitoring/database"
-	"stackyard/pkg/response"
+	"stackyrd/internal/monitoring/database"
+	"stackyrd/pkg/response"
 	"strings"
 	"time"
 

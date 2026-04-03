@@ -1045,7 +1045,7 @@ go run scripts/build.go --help
 **Output Example:**
 ```
    /\ 
-   (  )   stackyard Builder by diameter-tscd
+   (  )   stackyrd Builder by diameter-tscd
    \/ 
 ----------------------------------------------------------------------
 [1/7] Checking required tools
@@ -1648,7 +1648,7 @@ docs_wiki/
 ## 11. PROJECT STRUCTURE SUMMARY
 
 ```
-stackyard/
+stackyrd/
 ├── Dockerfile                  # Multi-stage Docker configuration
 ├── .dockerignore               # Docker ignore file
 ├── .gitignore                  # Git ignore file
@@ -2638,15 +2638,15 @@ readinessProbe:
 
 ### 20.2 Helm Chart
 
-**Location:** `deployments/helm/stackyard/`
+**Location:** `deployments/helm/stackyrd/`
 
 Helm chart for simplified Kubernetes deployments.
 
 **Chart.yaml:**
 ```yaml
 apiVersion: v2
-name: stackyard
-description: A Helm chart for Stackyard API
+name: stackyrd
+description: A Helm chart for Stackyrd API
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
@@ -2654,9 +2654,9 @@ appVersion: "1.0.0"
 
 **Installation:**
 ```bash
-helm install stackyard ./deployments/helm/stackyard
-helm upgrade stackyard ./deployments/helm/stackyard
-helm uninstall stackyard
+helm install stackyrd ./deployments/helm/stackyrd
+helm upgrade stackyrd ./deployments/helm/stackyrd
+helm uninstall stackyrd
 ```
 
 ### 20.3 GitHub Actions CI/CD
@@ -2938,7 +2938,7 @@ Production-ready structured logging with JSON output.
   "caller": "/app/internal/server/server.go:123",
   "request_id": "req-abc123",
   "user_id": "user-456",
-  "service_name": "stackyard",
+  "service_name": "stackyrd",
   "version": "1.0.0",
   "environment": "production",
   "fields": {
@@ -2955,7 +2955,7 @@ Production-ready structured logging with JSON output.
 logger := logging.NewStructuredLogger(
     os.Stdout,
     logging.INFO,
-    "stackyard",
+    "stackyrd",
     "1.0.0",
     "production",
 )
@@ -3028,7 +3028,7 @@ Automatic log file rotation based on size and age.
 
 **Configuration:**
 ```go
-writer, err := logging.NewRotatingWriter("/var/log/stackyard/app.log", logging.RotationConfig{
+writer, err := logging.NewRotatingWriter("/var/log/stackyrd/app.log", logging.RotationConfig{
     MaxSize:    100 * 1024 * 1024, // 100MB
     MaxAge:     7 * 24 * time.Hour, // 7 days
     MaxBackups: 10,
@@ -3154,7 +3154,7 @@ internal/middleware/
 ```
 deployments/
 ├── helm/
-│   └── stackyard/
+│   └── stackyrd/
 │       └── Chart.yaml        # Helm chart
 └── kubernetes/
     └── deployment.yaml       # Kubernetes deployment

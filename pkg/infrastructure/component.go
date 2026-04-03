@@ -1,18 +1,18 @@
 package infrastructure
 
 import (
-"stackyard/config"
-"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/logger"
 )
 
 // InfrastructureComponent defines the interface that all infrastructure managers must implement
 type InfrastructureComponent interface {
 	// Name returns the display name of the component
 	Name() string
-	
+
 	// Close gracefully shuts down the component
 	Close() error
-	
+
 	// GetStatus returns the current status of the component
 	GetStatus() map[string]interface{}
 }

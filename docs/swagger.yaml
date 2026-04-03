@@ -348,14 +348,14 @@ definitions:
 host: localhost:8080
 info:
   contact:
-    email: admin@stackyard.com
+    email: admin@stackyrd.com
     name: API Support
-  description: Stackyard API Documentation - A modular Go API framework
+  description: stackyrd API Documentation - A modular Go API framework
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: http://swagger.io/terms/
-  title: Stackyard API
+  title: stackyrd API
   version: "1.0"
 paths:
   /cache/{key}:

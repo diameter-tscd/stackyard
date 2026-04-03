@@ -1,7 +1,7 @@
 package registry
 
 import (
-	"stackyard/pkg/infrastructure"
+	"stackyrd/pkg/infrastructure"
 )
 
 // Dependencies holds all infrastructure dependencies that services might need

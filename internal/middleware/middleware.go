@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"stackyard/pkg/logger"
+	"stackyrd/pkg/logger"
 
 	"github.com/labstack/echo/v4"
 )

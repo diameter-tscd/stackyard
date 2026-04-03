@@ -2,9 +2,9 @@ package registry
 
 import (
 	"fmt"
-	"stackyard/config"
-	"stackyard/pkg/interfaces"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/interfaces"
+	"stackyrd/pkg/logger"
 
 	"github.com/labstack/echo/v4"
 )

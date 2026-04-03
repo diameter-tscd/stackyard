@@ -1,8 +1,8 @@
 package examples
 
 import (
-	"stackyard/pkg/request"
-	"stackyard/pkg/response"
+	"stackyrd/pkg/request"
+	"stackyrd/pkg/response"
 
 	"github.com/labstack/echo/v4"
 )

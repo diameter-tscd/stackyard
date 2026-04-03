@@ -1,9 +1,9 @@
 package registry
 
 import (
-	"stackyard/config"
-	"stackyard/pkg/infrastructure"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/infrastructure"
+	"stackyrd/pkg/logger"
 )
 
 // ServiceHelper helps services with dependency validation

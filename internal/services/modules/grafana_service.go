@@ -1,12 +1,12 @@
 package modules
 
 import (
-	"stackyard/config"
-	"stackyard/pkg/infrastructure"
-	"stackyard/pkg/interfaces"
-	"stackyard/pkg/logger"
-	"stackyard/pkg/registry"
-	"stackyard/pkg/response"
+	"stackyrd/config"
+	"stackyrd/pkg/infrastructure"
+	"stackyrd/pkg/interfaces"
+	"stackyrd/pkg/logger"
+	"stackyrd/pkg/registry"
+	"stackyrd/pkg/response"
 	"strconv"
 
 	"github.com/labstack/echo/v4"

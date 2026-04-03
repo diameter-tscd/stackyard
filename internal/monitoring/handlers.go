@@ -3,10 +3,10 @@ package monitoring
 import (
 	"fmt"
 	"os"
-	"stackyard/config"
-	"stackyard/pkg/infrastructure"
-	"stackyard/pkg/response"
-	"stackyard/pkg/utils"
+	"stackyrd/config"
+	"stackyrd/pkg/infrastructure"
+	"stackyrd/pkg/response"
+	"stackyrd/pkg/utils"
 	"sync"
 	"time"
 

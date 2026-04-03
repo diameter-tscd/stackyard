@@ -12,7 +12,7 @@ const docTemplate = `{
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",
-            "email": "admin@stackyard.com"
+            "email": "admin@stackyrd.com"
         },
         "license": {
             "name": "Apache 2.0",
@@ -2084,8 +2084,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "Stackyard API",
-	Description:      "Stackyard API Documentation - A modular Go API framework",
+	Title:            "stackyrd API",
+	Description:      "stackyrd API Documentation - A modular Go API framework",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

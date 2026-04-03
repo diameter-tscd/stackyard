@@ -2,8 +2,8 @@ package infrastructure
 
 import (
 	"fmt"
-	"stackyard/config"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/logger"
 	"sync"
 	"time"
 

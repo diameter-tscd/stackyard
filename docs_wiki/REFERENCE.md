@@ -1,6 +1,6 @@
 # Technical Reference
 
-This comprehensive reference covers all configuration options, API specifications, advanced features, and technical details for Stackyard. Use this as your complete technical resource.
+This comprehensive reference covers all configuration options, API specifications, advanced features, and technical details for stackyrd. Use this as your complete technical resource.
 
 ## Configuration Reference
 
@@ -9,7 +9,7 @@ This comprehensive reference covers all configuration options, API specification
 ```yaml
 # Application Configuration
 app:
-  name: "Stackyard"         # Application display name
+  name: "stackyrd"         # Application display name
   version: "1.0.0"          # Application version
   debug: true               # Enable debug logging
   env: "development"        # Environment (development, staging, production)
@@ -94,7 +94,7 @@ monitoring:
   port: "9090"              # Monitoring dashboard port
   password: "admin"         # Dashboard login password
   obfuscate_api: true       # Enable API response obfuscation
-  title: "Stackyard"        # Dashboard title
+  title: "stackyrd"        # Dashboard title
   subtitle: "Monitoring Dashboard" # Dashboard subtitle
   max_photo_size_mb: 2      # Maximum photo upload size
   upload_dir: "web/monitoring/uploads" # Upload directory
@@ -936,7 +936,7 @@ kill -9 <PID>
 docker ps | grep postgres
 
 # Test connection
-psql -h localhost -U postgres -d stackyard
+psql -h localhost -U postgres -d stackyrd
 ```
 
 **"Service not registering"**
@@ -1032,8 +1032,8 @@ GET /api/v2/users      # Version 2 (future)
 ### Header-based Versioning
 
 ```
-Accept: application/vnd.stackyard.v1+json
-Accept: application/vnd.stackyard.v2+json
+Accept: application/vnd.stackyrd.v1+json
+Accept: application/vnd.stackyrd.v2+json
 ```
 
 ### Deprecation Strategy
@@ -1109,4 +1109,4 @@ func (s *UploadService) HandleUpload(c echo.Context) error {
 }
 ```
 
-This technical reference provides comprehensive coverage of Stackyard's capabilities, configuration options, and implementation details. Use this document as your authoritative source for all technical aspects of the framework.
+This technical reference provides comprehensive coverage of stackyrd's capabilities, configuration options, and implementation details. Use this document as your authoritative source for all technical aspects of the framework.

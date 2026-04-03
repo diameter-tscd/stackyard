@@ -3,7 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
-	"stackyard/pkg/tui/template"
+	"stackyrd/pkg/tui/template"
 	"strings"
 	"sync"
 	"time"

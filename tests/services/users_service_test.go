@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"stackyard/internal/services/modules"
-	"stackyard/pkg/response"
-	testhelpers "stackyard/pkg/testing"
+	"stackyrd/internal/services/modules"
+	"stackyrd/pkg/response"
+	testhelpers "stackyrd/pkg/testing"
 )
 
 func TestNewUsersService(t *testing.T) {

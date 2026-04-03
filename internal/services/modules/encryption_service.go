@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"stackyard/config"
-	"stackyard/pkg/interfaces"
-	"stackyard/pkg/logger"
-	"stackyard/pkg/registry"
-	"stackyard/pkg/response"
+	"stackyrd/config"
+	"stackyrd/pkg/interfaces"
+	"stackyrd/pkg/logger"
+	"stackyrd/pkg/registry"
+	"stackyrd/pkg/response"
 
 	"github.com/labstack/echo/v4"
 )

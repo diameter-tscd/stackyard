@@ -18,7 +18,7 @@ import (
 // Configuration variables
 var (
 	SERVICES_DIR  = "internal/services/modules"
-	MODULE_NAME   = "stackyard"
+	MODULE_NAME   = "stackyrd"
 	STRUCTURE_DIR = "scripts/service"
 	TESTS_DIR     = "tests/services"
 )
@@ -57,49 +57,49 @@ type Dependency struct {
 var AVAILABLE_DEPENDENCIES = []Dependency{
 	{
 		Name:        "PostgresManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.PostgresManager",
 		Description: "PostgreSQL database connection manager",
 	},
 	{
 		Name:        "PostgresConnectionManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.PostgresConnectionManager",
 		Description: "Multi-tenant PostgreSQL connection manager",
 	},
 	{
 		Name:        "MongoConnectionManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.MongoConnectionManager",
 		Description: "Multi-tenant MongoDB connection manager",
 	},
 	{
 		Name:        "RedisManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.RedisManager",
 		Description: "Redis cache manager",
 	},
 	{
 		Name:        "KafkaManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.KafkaManager",
 		Description: "Kafka message queue manager",
 	},
 	{
 		Name:        "MinIOManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.MinIOManager",
 		Description: "MinIO object storage manager",
 	},
 	{
 		Name:        "GrafanaManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.GrafanaManager",
 		Description: "Grafana monitoring dashboard manager",
 	},
 	{
 		Name:        "CronManager",
-		Package:     "stackyard/pkg/infrastructure",
+		Package:     "stackyrd/pkg/infrastructure",
 		Type:        "*infrastructure.CronManager",
 		Description: "Cron job scheduler manager",
 	},
@@ -700,7 +700,7 @@ func setupSignalHandler(cancel context.CancelFunc) {
 func printBanner() {
 	fmt.Println("")
 	fmt.Println("   " + P_PURPLE + " /\\ " + RESET)
-	fmt.Println("   " + P_PURPLE + "(  )" + RESET + "   " + B_PURPLE + "Service Generator" + RESET + " " + GRAY + "for" + RESET + " " + B_WHITE + "Stackyard" + RESET)
+	fmt.Println("   " + P_PURPLE + "(  )" + RESET + "   " + B_PURPLE + "Service Generator" + RESET + " " + GRAY + "for" + RESET + " " + B_WHITE + "stackyrd" + RESET)
 	fmt.Println("   " + P_PURPLE + " \\/ " + RESET)
 	fmt.Println(GRAY + "----------------------------------------------------------------------" + RESET)
 }
