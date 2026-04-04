@@ -2,21 +2,6 @@
 
 ## DOCUMENTATION TERMS
 
-### Writing Guidelines
-
-**Formatting Rules:**
-- No emojis in documentation
-- No "new" context references (describe existing state only)
-- Use present tense for current features
-- Use past tense for historical changes
-- Maintain professional tone throughout
-
-**Terminology Standards:**
-- Use "existing" instead of "new"
-- Use "current" instead of "modern"
-- Use "available" instead of "introduced"
-- Use "includes" instead of "adds"
-- Use "provides" instead of "offers"
 
 ## 1. PROJECT OVERVIEW
 
@@ -28,9 +13,8 @@ This project is a sophisticated Go-based boilerplate application with a modular 
 - **ORM**: GORM for database operations with auto-migration
 - **Architecture**: Modular, service-oriented with multi-tenant support
 - **UI**: Terminal User Interface (TUI) using Bubble Tea
-- **Monitoring**: Real-time system and service monitoring with fully offline web dashboard
 - **Database**: Multiple PostgreSQL connections with dynamic switching
-- **Security**: API obfuscation, comprehensive error handling, AES-256 encryption
+- **Security**: Comprehensive error handling, AES-256 encryption
 
 ## 2. ARCHITECTURE & DESIGN
 
@@ -197,7 +181,6 @@ pagination.GetOffset()    // Calculates offset for DB queries
 
 **Implementation:**
 - **Main API Server**: Automatic GZIP compression for all HTTP responses in `internal/server/server.go`
-- **Monitoring Web UI**: GZIP compression enabled for all responses in `internal/monitoring/server.go`
 - **Default Behavior**: GZIP is enabled by default for all endpoints without configuration
 - **Performance Impact**: Typically reduces response sizes by 60-80% for text-based content (JSON, HTML, CSS, JS)
 
@@ -205,30 +188,6 @@ pagination.GetOffset()    // Calculates offset for DB queries
 **Content Types**: Automatically compresses text-based responses, skips binary content
 
 ## 5. SECURITY FEATURES
-
-### 5.1 API Obfuscation
-
-**Purpose:** Obscure JSON data in transit using Base64 encoding
-
-**Configuration:**
-```yaml
-monitoring:
-  obfuscate_api: true  # Enable/disable obfuscation
-```
-
-**Implementation:**
-- **Backend**: `internal/monitoring/middleware/obfuscator.go`
-  - Intercepts `/api/*` requests
-  - Excludes: `/api/logs`, `/api/cpu`, `/api/user/photos`
-  - Encodes JSON responses with Base64
-  - Sets `X-Obfuscated: true` header
-  - Updates `Content-Length` header
-
-- **Frontend**: `web/monitoring/assets/js/app.js`
-  - Uses `window.fetch` interceptor
-  - "Parse First, Decode Second" strategy
-  - Handles both obfuscated and standard responses
-  - Normalizes URL-safe characters and adds padding
 
 ### 5.2 Error Handling
 
@@ -321,14 +280,18 @@ Each service module uses an `init()` function to register itself with the global
 ```go
 func init() {
     registry.RegisterService("service_name", func(config *config.Config, logger *logger.Logger, deps *registry.Dependencies) interfaces.Service {
-        if !config.Services.IsEnabled("service_name") {
+        helper := registry.NewServiceHelper(config, logger, deps)
+        
+        if !helper.IsServiceEnabled("service_name") {
             return nil
         }
-        if deps == nil || deps.RequiredDependency == nil {
-            logger.Warn("Required dependency not available, skipping service")
+        
+        dependencyManager, ok := helper.GetDependencyName()
+        if !helper.RequireDependency("DependencyName", ok) {
             return nil
         }
-        return NewService(deps.RequiredDependency, true, logger)
+        
+        return NewServiceName(dependencyManager, true, logger)
     })
 }
 ```
@@ -385,7 +348,7 @@ services:
 
 ### 7.1 Overview
 
-The TUI provides visual feedback during boot and real-time monitoring using Bubble Tea framework.
+The TUI provides visual feedback during boot and system status information using Bubble Tea framework.
 
 **Technologies:**
 - Bubble Tea: TUI framework
@@ -646,6 +609,14 @@ func NewServiceHelper(config *config.Config, logger *logger.Logger, deps *Depend
 ```
 
 **Type-Safe Dependency Getters:**
+All infrastructure dependencies are retrieved using generic `GetTyped[T]()` registry function with explicit casting:
+
+```go
+// Generic infrastructure access pattern
+func GetTyped[T any](deps *Dependencies, name string) (T, bool)
+```
+
+**Available Infrastructure Getters:**
 ```go
 func (h *ServiceHelper) GetRedis() (*infrastructure.RedisManager, bool)
 func (h *ServiceHelper) GetKafka() (*infrastructure.KafkaManager, bool)
@@ -657,6 +628,14 @@ func (h *ServiceHelper) GetGrafana() (*infrastructure.GrafanaManager, bool)
 func (h *ServiceHelper) GetCron() (*infrastructure.CronManager, bool)
 func (h *ServiceHelper) GetMinIO() (*infrastructure.MinIOManager, bool)
 ```
+
+**Implementation Pattern:**
+All helper methods use consistent generic registry access:
+```go
+return GetTyped[*infrastructure.ComponentType](h.deps, "component_name")
+```
+
+All infrastructure components are registered by string identifier and retrieved with type-safe casting. No static type mappings exist in the registry.
 
 **Service Registration Pattern:**
 ```go

@@ -37,8 +37,12 @@ func New(cfg *config.Config, l *logger.Logger) *Server {
 		l.Error("HTTP Error", err)
 
 		if he, ok := err.(*echo.HTTPError); ok {
-			var message string
 			code := he.Code
+			message := "An unexpected error occurred"
+
+			if msg, ok := he.Message.(string); ok {
+				message = msg
+			}
 
 			if code == 404 {
 				message = "Endpoint not found. This incident will be reported."
@@ -49,11 +53,6 @@ func New(cfg *config.Config, l *logger.Logger) *Server {
 				return
 			}
 
-			if msg, ok := he.Message.(string); ok {
-				message = msg
-			} else {
-				message = "An unexpected error occurred"
-			}
 			response.Error(c, code, "HTTP_ERROR", message)
 			return
 		}
@@ -70,69 +69,20 @@ func New(cfg *config.Config, l *logger.Logger) *Server {
 
 func (s *Server) Start() error {
 	s.infraInitManager = infrastructure.NewInfraInitManager(s.logger)
-
 	s.logger.Info("Starting async infrastructure initialization...")
 	componentRegistry := s.infraInitManager.StartAsyncInitialization(s.config, s.logger)
 
-	// Get components from registry
-	redisManager, _ := componentRegistry.Get("redis")
-	kafkaManager, _ := componentRegistry.Get("kafka")
-	minioManager, _ := componentRegistry.Get("minio")
-	postgresManager, _ := componentRegistry.Get("postgres")
-	mongoManager, _ := componentRegistry.Get("mongo")
-	grafanaManager, _ := componentRegistry.Get("grafana")
-	cronManager, _ := componentRegistry.Get("cron")
+	// Create dynamic dependencies container
+	s.dependencies = registry.NewDependencies()
 
-	// Type assert to get the concrete types
-	var redisMgr *infrastructure.RedisManager
-	var kafkaMgr *infrastructure.KafkaManager
-	var minioMgr *infrastructure.MinIOManager
-	var postgresConnMgr *infrastructure.PostgresConnectionManager
-	var mongoConnMgr *infrastructure.MongoConnectionManager
-	var grafanaMgr *infrastructure.GrafanaManager
-	var cronMgr *infrastructure.CronManager
-
-	if rm, ok := redisManager.(*infrastructure.RedisManager); ok {
-		redisMgr = rm
-	}
-	if km, ok := kafkaManager.(*infrastructure.KafkaManager); ok {
-		kafkaMgr = km
-	}
-	if mm, ok := minioManager.(*infrastructure.MinIOManager); ok {
-		minioMgr = mm
-	}
-	if pm, ok := postgresManager.(*infrastructure.PostgresConnectionManager); ok {
-		postgresConnMgr = pm
-	} else if _, ok := postgresManager.(*infrastructure.PostgresManager); ok {
-		// Handle single connection case
-		s.logger.Info("PostgreSQL single connection manager detected")
-	}
-	if mm, ok := mongoManager.(*infrastructure.MongoConnectionManager); ok {
-		mongoConnMgr = mm
-	} else if _, ok := mongoManager.(*infrastructure.MongoManager); ok {
-		// Handle single connection case
-		s.logger.Info("MongoDB single connection manager detected")
-	}
-	if gm, ok := grafanaManager.(*infrastructure.GrafanaManager); ok {
-		grafanaMgr = gm
-	}
-	if cm, ok := cronManager.(*infrastructure.CronManager); ok {
-		cronMgr = cm
+	// Dynamically load all components from registry
+	for name, component := range componentRegistry.GetAll() {
+		s.dependencies.Set(name, component)
+		s.logger.Info("Registered infrastructure component", "name", name, "type", fmt.Sprintf("%T", component))
 	}
 
-	s.dependencies = registry.NewDependencies(
-		redisMgr,
-		kafkaMgr,
-		nil,
-		postgresConnMgr,
-		nil,
-		mongoConnMgr,
-		grafanaMgr,
-		cronMgr,
-		minioMgr,
-	)
-
-	s.setConnectionDefaults(postgresConnMgr, mongoConnMgr)
+	// Handle database connection defaults
+	s.setConnectionDefaults()
 
 	s.logger.Info("Initializing Middleware...")
 	middleware.InitMiddlewares(s.echo, middleware.Config{
@@ -147,10 +97,9 @@ func (s *Server) Start() error {
 
 	s.logger.Info("Booting Services...")
 	serviceRegistry := registry.NewServiceRegistry(s.logger)
-
 	s.registerHealthEndpoints()
-	services := registry.AutoDiscoverServices(s.config, s.logger, s.dependencies)
 
+	services := registry.AutoDiscoverServices(s.config, s.logger, s.dependencies)
 	for _, service := range services {
 		serviceRegistry.Register(service)
 	}
@@ -169,15 +118,26 @@ func (s *Server) Start() error {
 	return s.echo.Start(":" + port)
 }
 
-func (s *Server) setConnectionDefaults(postgresConnectionManager *infrastructure.PostgresConnectionManager, mongoConnectionManager *infrastructure.MongoConnectionManager) {
-	if postgresConnectionManager != nil {
-		if defaultConn, exists := postgresConnectionManager.GetDefaultConnection(); exists {
-			s.dependencies.PostgresManager = defaultConn
+func (s *Server) setConnectionDefaults() {
+	// Handle PostgreSQL connection defaults
+	if pg, ok := s.dependencies.Get("postgres"); ok {
+		switch mgr := pg.(type) {
+		case *infrastructure.PostgresConnectionManager:
+			if defaultConn, exists := mgr.GetDefaultConnection(); exists {
+				s.dependencies.Set("postgres.default", defaultConn)
+				s.logger.Info("PostgreSQL single connection manager detected")
+			}
 		}
 	}
-	if mongoConnectionManager != nil {
-		if defaultConn, exists := mongoConnectionManager.GetDefaultConnection(); exists {
-			s.dependencies.MongoManager = defaultConn
+
+	// Handle MongoDB connection defaults
+	if mg, ok := s.dependencies.Get("mongo"); ok {
+		switch mgr := mg.(type) {
+		case *infrastructure.MongoConnectionManager:
+			if defaultConn, exists := mgr.GetDefaultConnection(); exists {
+				s.dependencies.Set("mongo.default", defaultConn)
+				s.logger.Info("MongoDB single connection manager detected")
+			}
 		}
 	}
 }
@@ -205,17 +165,13 @@ func (s *Server) registerHealthEndpoints() {
 	})
 }
 
-// Shutdown performs graceful shutdown of all infrastructure components
 func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 	logger.Info("Starting graceful shutdown of infrastructure...")
 
 	go func() {
 		time.Sleep(10 * time.Second)
-		if logger != nil {
-			logger.Warn("Maximum shutdown time is 20s, force shutdown when timeout.")
-			logger.Fatal("Graceful shutdown timed out, force shutdown.", nil)
-		}
-		fmt.Println("Maximum shutdown time is 20s, force shutdown when timeout.")
+		logger.Warn("Maximum shutdown time is 20s, force shutdown when timeout.")
+		logger.Fatal("Graceful shutdown timed out, force shutdown.", nil)
 		os.Exit(1)
 	}()
 
@@ -229,9 +185,10 @@ func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 		if closer == nil {
 			return
 		}
+
 		logger.Info("Shutting down " + name + "...")
-		if closerCloser, ok := closer.(interface{ Close() error }); ok {
-			if err := closerCloser.Close(); err != nil {
+		if c, ok := closer.(interface{ Close() error }); ok {
+			if err := c.Close(); err != nil {
 				shutdownErrors = append(shutdownErrors, fmt.Errorf("%s shutdown error: %w", name, err))
 				logger.Error("Error shutting down "+name, err)
 			} else {
@@ -240,11 +197,10 @@ func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 		}
 	}
 
-	shutdownComponent("Cron Manager", s.dependencies.CronManager)
-	logger.Info("MongoDB connections will be closed by infrastructure manager")
-	logger.Info("PostgreSQL connections will be closed by infrastructure manager")
-	shutdownComponent("Kafka Manager", s.dependencies.KafkaManager)
-	shutdownComponent("Redis Manager", s.dependencies.RedisManager)
+	// Dynamically shut down all registered components
+	for name, component := range s.dependencies.GetAll() {
+		shutdownComponent(name, component)
+	}
 
 	if len(shutdownErrors) > 0 {
 		logger.Warn("Graceful shutdown completed with errors", "error_count", len(shutdownErrors))
@@ -253,6 +209,7 @@ func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 		}
 		return fmt.Errorf("shutdown completed with %d errors", len(shutdownErrors))
 	}
+
 	logger.Info("Graceful shutdown completed successfully")
 	return nil
 }

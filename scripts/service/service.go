@@ -561,37 +561,13 @@ func (ctx *ServiceContext) buildInitFunction() string {
 		for _, dep := range ctx.Config.Dependencies {
 			varName := strings.ToLower(dep.Name[:1]) + dep.Name[1:]
 
-			// Map dependency names to helper method names
-			var helperMethod string
-			switch dep.Name {
-			case "RedisManager":
-				helperMethod = "GetRedis"
-			case "KafkaManager":
-				helperMethod = "GetKafka"
-			case "PostgresManager":
-				helperMethod = "GetPostgres"
-			case "PostgresConnectionManager":
-				helperMethod = "GetPostgresConnection"
-			case "MongoManager":
-				helperMethod = "GetMongo"
-			case "MongoConnectionManager":
-				helperMethod = "GetMongoConnection"
-			case "GrafanaManager":
-				helperMethod = "GetGrafana"
-			case "CronManager":
-				helperMethod = "GetCron"
-			case "MinIOManager":
-				helperMethod = "GetMinIO"
-			default:
-				helperMethod = "Get" + dep.Name
-			}
-
-			dependencyChecks.WriteString(fmt.Sprintf(`		%s, ok := helper.%s()
-		if !helper.RequireDependency("%s", ok) {
+			dependencyChecks.WriteString(fmt.Sprintf(`		%s, ok := registry.GetTyped[%s](deps, "%s")
+		if !ok {
+			logger.Warn("%s not available, skipping service")
 			return nil
 		}
 		
-`, varName, helperMethod, dep.Name))
+`, varName, dep.Type, strings.ToLower(dep.Name[:1])+dep.Name[1:], dep.Name))
 
 			dependencyParams.WriteString(fmt.Sprintf(", %s", varName))
 		}

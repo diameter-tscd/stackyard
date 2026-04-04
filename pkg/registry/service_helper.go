@@ -38,72 +38,45 @@ func (h *ServiceHelper) IsServiceEnabled(serviceName string) bool {
 
 // GetRedis returns Redis manager or error if not available
 func (h *ServiceHelper) GetRedis() (*infrastructure.RedisManager, bool) {
-	if h.deps.RedisManager == nil {
-		return nil, false
-	}
-	return h.deps.RedisManager, true
+	return GetTyped[*infrastructure.RedisManager](h.deps, "redis")
 }
 
 // GetKafka returns Kafka manager or error if not available
 func (h *ServiceHelper) GetKafka() (*infrastructure.KafkaManager, bool) {
-	if h.deps.KafkaManager == nil {
-		return nil, false
-	}
-	return h.deps.KafkaManager, true
+	return GetTyped[*infrastructure.KafkaManager](h.deps, "kafka")
 }
 
 // GetPostgres returns PostgreSQL manager (single connection) or error
 func (h *ServiceHelper) GetPostgres() (*infrastructure.PostgresManager, bool) {
-	if h.deps.PostgresManager == nil {
-		return nil, false
-	}
-	return h.deps.PostgresManager, true
+	return GetTyped[*infrastructure.PostgresManager](h.deps, "postgres")
 }
 
 // GetPostgresConnection returns PostgreSQL connection manager (multi-tenant) or error
 func (h *ServiceHelper) GetPostgresConnection() (*infrastructure.PostgresConnectionManager, bool) {
-	if h.deps.PostgresConnectionManager == nil {
-		return nil, false
-	}
-	return h.deps.PostgresConnectionManager, true
+	return GetTyped[*infrastructure.PostgresConnectionManager](h.deps, "postgres")
 }
 
 // GetMongo returns MongoDB manager (single connection) or error
 func (h *ServiceHelper) GetMongo() (*infrastructure.MongoManager, bool) {
-	if h.deps.MongoManager == nil {
-		return nil, false
-	}
-	return h.deps.MongoManager, true
+	return GetTyped[*infrastructure.MongoManager](h.deps, "mongo")
 }
 
 // GetMongoConnection returns MongoDB connection manager (multi-tenant) or error
 func (h *ServiceHelper) GetMongoConnection() (*infrastructure.MongoConnectionManager, bool) {
-	if h.deps.MongoConnectionManager == nil {
-		return nil, false
-	}
-	return h.deps.MongoConnectionManager, true
+	return GetTyped[*infrastructure.MongoConnectionManager](h.deps, "mongo")
 }
 
 // GetGrafana returns Grafana manager or error if not available
 func (h *ServiceHelper) GetGrafana() (*infrastructure.GrafanaManager, bool) {
-	if h.deps.GrafanaManager == nil {
-		return nil, false
-	}
-	return h.deps.GrafanaManager, true
+	return GetTyped[*infrastructure.GrafanaManager](h.deps, "grafana")
 }
 
 // GetCron returns Cron manager or error if not available
 func (h *ServiceHelper) GetCron() (*infrastructure.CronManager, bool) {
-	if h.deps.CronManager == nil {
-		return nil, false
-	}
-	return h.deps.CronManager, true
+	return GetTyped[*infrastructure.CronManager](h.deps, "cron")
 }
 
 // GetMinIO returns MinIO manager or error if not available
 func (h *ServiceHelper) GetMinIO() (*infrastructure.MinIOManager, bool) {
-	if h.deps.MinIOManager == nil {
-		return nil, false
-	}
-	return h.deps.MinIOManager, true
+	return GetTyped[*infrastructure.MinIOManager](h.deps, "minio")
 }
