@@ -188,11 +188,11 @@ func init() {
 			return nil
 		}
 
-		postgresManager, ok := helper.GetPostgres()
+		postgresManager, ok := registry.GetTyped[infrastructure.PostgresManager](deps, "postgres")
 		if !helper.RequireDependency("PostgresManager", ok) {
 			return nil
 		}
 
-		return NewTasksService(postgresManager, true, logger)
+		return NewTasksService(&postgresManager, true, logger)
 	})
 }

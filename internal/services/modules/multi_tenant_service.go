@@ -308,11 +308,11 @@ func init() {
 			return nil
 		}
 
-		postgresConnectionManager, ok := helper.GetPostgresConnection()
+		postgresConnectionManager, ok := registry.GetTyped[infrastructure.PostgresConnectionManager](deps, "postgres")
 		if !helper.RequireDependency("PostgresConnectionManager", ok) {
 			return nil
 		}
 
-		return NewMultiTenantService(postgresConnectionManager, true, logger)
+		return NewMultiTenantService(&postgresConnectionManager, true, logger)
 	})
 }

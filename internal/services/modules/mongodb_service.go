@@ -475,11 +475,11 @@ func init() {
 			return nil
 		}
 
-		mongoConnectionManager, ok := helper.GetMongoConnection()
+		mongoConnectionManager, ok := registry.GetTyped[infrastructure.MongoConnectionManager](deps, "grafana")
 		if !helper.RequireDependency("MongoConnectionManager", ok) {
 			return nil
 		}
 
-		return NewMongoDBService(mongoConnectionManager, true, logger)
+		return NewMongoDBService(&mongoConnectionManager, true, logger)
 	})
 }

@@ -296,11 +296,11 @@ func init() {
 			return nil
 		}
 
-		grafanaManager, ok := helper.GetGrafana()
+		grafanaManager, ok := registry.GetTyped[infrastructure.GrafanaManager](deps, "grafana")
 		if !helper.RequireDependency("GrafanaManager", ok) {
 			return nil
 		}
 
-		return NewGrafanaService(grafanaManager, true, logger)
+		return NewGrafanaService(&grafanaManager, true, logger)
 	})
 }
