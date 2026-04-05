@@ -97,6 +97,16 @@ func (s *Server) Start() error {
 	serviceRegistry.Boot(s.gin)
 	s.logger.Info("All services boot successfully")
 
+	// Register Swagger UI
+	if s.config.Swagger.Enabled {
+		s.logger.Info("Registering Swagger UI documentation...")
+		middleware.RegisterSwaggerRoutes(s.gin, middleware.SwaggerConfig{
+			Enabled:  s.config.Swagger.Enabled,
+			BasePath: "/swagger",
+		})
+		s.logger.Info("Swagger UI available at /swagger/index.html")
+	}
+
 	port := s.config.Server.Port
 	s.logger.Info("HTTP server starting immediately", "port", port, "env", s.config.App.Env)
 	s.logger.Info("Infrastructure components initializing in background...")
