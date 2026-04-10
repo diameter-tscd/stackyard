@@ -38,11 +38,8 @@ go run cmd/app/main.go
 
 ## Screenshots
 
-### Backend Console
+### Console
 ![Backend Console](.assets/Recording_Console.gif)
-
-### Monitoring Dashboard
-![Monitoring Dashboard](.assets/Recording_Dashboard.gif)
 
 ## Key Features
 
