@@ -15,6 +15,7 @@ import (
 	"stackyrd/pkg/logger"
 	"stackyrd/pkg/registry"
 	"stackyrd/pkg/response"
+	"stackyrd/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -168,6 +169,7 @@ func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 		time.Sleep(10 * time.Second)
 		logger.Warn("Maximum shutdown time is 20s, force shutdown when timeout.")
 		logger.Fatal("Graceful shutdown timed out, force shutdown.", nil)
+		utils.ClearScreen()
 		os.Exit(1)
 	}()
 

@@ -5,17 +5,15 @@
 <div align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"/>
   <img src="https://img.shields.io/badge/go-1.21%2B-00ADD8.svg" alt="Go Version"/>
-  <img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status"/>
+  <img src="https://github.com/diameter-tscd/stackyrd/actions/workflows/go-build.yml/badge.svg" alt="Build Status"/>
+  <img src="https://github.com/diameter-tscd/stackyrd/actions/workflows/security.yml/badge.svg" alt="Security Status"/>
   <img src="https://img.shields.io/badge/github-diameter--tscd/stackyrd-181717.svg" alt="GitHub Repo"/>
 </div>
 <br>
 
-Stackyrd is a sophisticated service fabric designed to bridge the gap between rapid development and enterprise-grade stability. It provides a standardized, battle-tested foundation for building distributed systems in Go, focusing on observable infrastructure, asynchronous performance, and security by default.
+Stackyrd provides an enterprise-grade service fabric foundation for building robust and observable distributed systems in Go. Our goal is to bridge the gap between rapid development cycles and industrial-strength stability, making complex microservices architectures manageable from day one.
 
 ## Quick Start
-
-### Prerequisites
-- Go 1.21+
 
 ### Installation & Run
 
@@ -35,24 +33,17 @@ go run scripts/build/build.go
 
 ```
 
-**First Access:**
-1. Open `http://localhost:9090` (monitoring dashboard)
-2. Login with password: `admin`
-3. **Important**: Change the default password immediately!
+## Preview
 
-## Screenshots
-
-### CLI UI
 ![Console](.assets/console.gif)
 
 ## Key Features
 
 - **Modular Services**: Enable/disable services via configuration
-- **Monitoring Dashboard**: Real-time metrics, logs, and system monitoring
 - **Terminal UI**: Interactive boot sequence and live CLI dashboard
-- **Infrastructure Support**: Redis, PostgreSQL (multi-tenant), Kafka, MinIO
+- **Infrastructure Support**: Redis, PostgreSQL (multi-tenant), Kafka, MinIO and many more at `stackyrd-pkg`
 - **Security**: API encryption, authentication, and access controls
-- **Build Tools**: Automated build scripts with backup and archiving
+- **Build Tools**: Automated build scripts with backup and archiving with `build.go`
 
 ## Documentation
 
@@ -60,7 +51,4 @@ go run scripts/build/build.go
 
 ## License
 
-Apache License Version 2.0: [LICENSE](LICENSE)
-
-
-**Powered by diameter-tscd**
+Distributed under the Apache License Version 2.0. See `LICENSE` for full information.
