@@ -82,7 +82,7 @@ grafana:
 
 monitoring:
   enabled: true
-  port: "9090"
+  port: "x"
   password: "admin"
   obfuscate_api: true
   title: "stackyrd"

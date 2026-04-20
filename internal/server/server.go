@@ -3,159 +3,90 @@ package server
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
-	"reflect"
 	"time"
 
 	_ "stackyrd/internal/services/modules"
 
 	"stackyrd/config"
 	"stackyrd/internal/middleware"
-	"stackyrd/internal/monitoring"
 	"stackyrd/pkg/infrastructure"
 	"stackyrd/pkg/logger"
 	"stackyrd/pkg/registry"
 	"stackyrd/pkg/response"
 	"stackyrd/pkg/utils"
 
-	"github.com/labstack/echo/v4"
-	echoMiddleware "github.com/labstack/echo/v4/middleware"
+	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
-	echo             *echo.Echo
+	gin              *gin.Engine
 	config           *config.Config
 	logger           *logger.Logger
 	dependencies     *registry.Dependencies
-	broadcaster      *monitoring.LogBroadcaster
 	infraInitManager *infrastructure.InfraInitManager
 }
 
-func New(cfg *config.Config, l *logger.Logger, b *monitoring.LogBroadcaster) *Server {
-	e := echo.New()
-	e.HideBanner = true
-	e.HidePort = true
-	e.Use(echoMiddleware.Gzip())
+func New(cfg *config.Config, l *logger.Logger) *Server {
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.Use(gin.Recovery())
 
-	e.HTTPErrorHandler = func(err error, c echo.Context) {
-		l.Error("HTTP Error", err)
+	// Custom error handler
+	r.NoRoute(func(c *gin.Context) {
+		l.Warn("Endpoint not found", "path", c.Request.URL.Path, "method", c.Request.Method)
+		response.Error(c, http.StatusNotFound, "ENDPOINT_NOT_FOUND", "Endpoint not found. This incident will be reported.", map[string]interface{}{
+			"path":   c.Request.URL.Path,
+			"method": c.Request.Method,
+		})
+	})
 
-		if he, ok := err.(*echo.HTTPError); ok {
-			var message string
-			code := he.Code
-
-			if code == 404 {
-				message = "Endpoint not found. This incident will be reported."
-				response.Error(c, code, "ENDPOINT_NOT_FOUND", message, map[string]interface{}{
-					"path":   c.Request().URL.Path,
-					"method": c.Request().Method,
-				})
-				return
-			}
-
-			if msg, ok := he.Message.(string); ok {
-				message = msg
-			} else {
-				message = "An unexpected error occurred"
-			}
-			response.Error(c, code, "HTTP_ERROR", message)
-			return
-		}
-
-		response.InternalServerError(c, "An unexpected error occurred")
-	}
+	r.NoMethod(func(c *gin.Context) {
+		l.Warn("Method not allowed")
+		response.Error(c, http.StatusMethodNotAllowed, "HTTP_ERROR", "Method not allowed")
+	})
 
 	return &Server{
-		echo:        e,
-		config:      cfg,
-		logger:      l,
-		broadcaster: b,
+		gin:    r,
+		config: cfg,
+		logger: l,
 	}
 }
 
 func (s *Server) Start() error {
 	s.infraInitManager = infrastructure.NewInfraInitManager(s.logger)
-
 	s.logger.Info("Starting async infrastructure initialization...")
 	componentRegistry := s.infraInitManager.StartAsyncInitialization(s.config, s.logger)
 
-	// Get components from registry
-	redisManager, _ := componentRegistry.Get("redis")
-	kafkaManager, _ := componentRegistry.Get("kafka")
-	minioManager, _ := componentRegistry.Get("minio")
-	postgresManager, _ := componentRegistry.Get("postgres")
-	mongoManager, _ := componentRegistry.Get("mongo")
-	grafanaManager, _ := componentRegistry.Get("grafana")
-	cronManager, _ := componentRegistry.Get("cron")
+	// Create dynamic dependencies container
+	s.dependencies = registry.NewDependencies()
 
-	// Type assert to get the concrete types
-	var redisMgr *infrastructure.RedisManager
-	var kafkaMgr *infrastructure.KafkaManager
-	var minioMgr *infrastructure.MinIOManager
-	var postgresConnMgr *infrastructure.PostgresConnectionManager
-	var mongoConnMgr *infrastructure.MongoConnectionManager
-	var grafanaMgr *infrastructure.GrafanaManager
-	var cronMgr *infrastructure.CronManager
-
-	if rm, ok := redisManager.(*infrastructure.RedisManager); ok {
-		redisMgr = rm
-	}
-	if km, ok := kafkaManager.(*infrastructure.KafkaManager); ok {
-		kafkaMgr = km
-	}
-	if mm, ok := minioManager.(*infrastructure.MinIOManager); ok {
-		minioMgr = mm
-	}
-	if pm, ok := postgresManager.(*infrastructure.PostgresConnectionManager); ok {
-		postgresConnMgr = pm
-	} else if _, ok := postgresManager.(*infrastructure.PostgresManager); ok {
-		// Handle single connection case
-		s.logger.Info("PostgreSQL single connection manager detected")
-	}
-	if mm, ok := mongoManager.(*infrastructure.MongoConnectionManager); ok {
-		mongoConnMgr = mm
-	} else if _, ok := mongoManager.(*infrastructure.MongoManager); ok {
-		// Handle single connection case
-		s.logger.Info("MongoDB single connection manager detected")
-	}
-	if gm, ok := grafanaManager.(*infrastructure.GrafanaManager); ok {
-		grafanaMgr = gm
-	}
-	if cm, ok := cronManager.(*infrastructure.CronManager); ok {
-		cronMgr = cm
+	// Dynamically load all components from registry
+	for name, component := range componentRegistry.GetAll() {
+		s.dependencies.Set(name, component)
+		s.logger.Info("Registered infrastructure component", "name", name, "type", fmt.Sprintf("%T", component))
 	}
 
-	s.dependencies = registry.NewDependencies(
-		redisMgr,
-		kafkaMgr,
-		nil,
-		postgresConnMgr,
-		nil,
-		mongoConnMgr,
-		grafanaMgr,
-		cronMgr,
-		minioMgr,
-	)
-
-	s.setConnectionDefaults(postgresConnMgr, mongoConnMgr)
+	// Handle database connection defaults
+	s.setConnectionDefaults()
 
 	s.logger.Info("Initializing Middleware...")
-	middleware.InitMiddlewares(s.echo, middleware.Config{
+	middleware.InitMiddlewares(s.gin, middleware.Config{
 		AuthType: s.config.Auth.Type,
 		Logger:   s.logger,
 	})
 
 	if s.config.Encryption.Enabled {
 		s.logger.Info("Initializing Encryption Middleware...")
-		s.echo.Use(middleware.EncryptionMiddleware(s.config, s.logger))
+		s.gin.Use(middleware.EncryptionMiddleware(s.config, s.logger))
 	}
 
 	s.logger.Info("Booting Services...")
 	serviceRegistry := registry.NewServiceRegistry(s.logger)
-
 	s.registerHealthEndpoints()
-	services := registry.AutoDiscoverServices(s.config, s.logger, s.dependencies)
 
+	services := registry.AutoDiscoverServices(s.config, s.logger, s.dependencies)
 	for _, service := range services {
 		serviceRegistry.Register(service)
 	}
@@ -164,38 +95,53 @@ func (s *Server) Start() error {
 		s.logger.Warn("No services registered!")
 	}
 
-	serviceRegistry.Boot(s.echo)
-	s.logger.Info("All services boot successfully, ready to start monitoring")
+	serviceRegistry.Boot(s.gin)
+	s.logger.Info("All services boot successfully")
 
-	if s.config.Monitoring.Enabled {
-		servicesList := s.buildServicesList(serviceRegistry)
-		go monitoring.Start(s.config.Monitoring, s.config, s, s.broadcaster, componentRegistry, servicesList, s.logger)
-		s.logger.Info("Monitoring interface started", "port", s.config.Monitoring.Port, "services_count", len(servicesList))
+	// Register Swagger UI
+	if s.config.Swagger.Enabled {
+		s.logger.Info("Registering Swagger UI documentation...")
+		middleware.RegisterSwaggerRoutes(s.gin, middleware.SwaggerConfig{
+			Enabled:  s.config.Swagger.Enabled,
+			BasePath: "/swagger",
+		})
+		s.logger.Info("Swagger UI available at /swagger/index.html")
 	}
 
 	port := s.config.Server.Port
 	s.logger.Info("HTTP server starting immediately", "port", port, "env", s.config.App.Env)
 	s.logger.Info("Infrastructure components initializing in background...")
 
-	return s.echo.Start(":" + port)
+	return s.gin.Run(":" + port)
 }
 
-func (s *Server) setConnectionDefaults(postgresConnectionManager *infrastructure.PostgresConnectionManager, mongoConnectionManager *infrastructure.MongoConnectionManager) {
-	if postgresConnectionManager != nil {
-		if defaultConn, exists := postgresConnectionManager.GetDefaultConnection(); exists {
-			s.dependencies.PostgresManager = defaultConn
+func (s *Server) setConnectionDefaults() {
+	// Handle PostgreSQL connection defaults
+	if pg, ok := s.dependencies.Get("postgres"); ok {
+		switch mgr := pg.(type) {
+		case *infrastructure.PostgresConnectionManager:
+			if defaultConn, exists := mgr.GetDefaultConnection(); exists {
+				s.dependencies.Set("postgres.default", defaultConn)
+				s.logger.Info("PostgreSQL single connection manager detected")
+			}
 		}
 	}
-	if mongoConnectionManager != nil {
-		if defaultConn, exists := mongoConnectionManager.GetDefaultConnection(); exists {
-			s.dependencies.MongoManager = defaultConn
+
+	// Handle MongoDB connection defaults
+	if mg, ok := s.dependencies.Get("mongo"); ok {
+		switch mgr := mg.(type) {
+		case *infrastructure.MongoConnectionManager:
+			if defaultConn, exists := mgr.GetDefaultConnection(); exists {
+				s.dependencies.Set("mongo.default", defaultConn)
+				s.logger.Info("MongoDB single connection manager detected")
+			}
 		}
 	}
 }
 
 func (s *Server) registerHealthEndpoints() {
-	s.echo.GET("/health", func(c echo.Context) error {
-		return response.Success(c, map[string]interface{}{
+	s.gin.GET("/health", func(c *gin.Context) {
+		response.Success(c, map[string]interface{}{
 			"status":                  "ok",
 			"server_ready":            true,
 			"infrastructure":          s.infraInitManager.GetStatus(),
@@ -203,78 +149,27 @@ func (s *Server) registerHealthEndpoints() {
 		})
 	})
 
-	s.echo.GET("/health/infrastructure", func(c echo.Context) error {
-		return response.Success(c, s.infraInitManager.GetStatus())
+	s.gin.GET("/health/infrastructure", func(c *gin.Context) {
+		response.Success(c, s.infraInitManager.GetStatus())
 	})
 
-	s.echo.POST("/restart", func(c echo.Context) error {
+	s.gin.POST("/restart", func(c *gin.Context) {
 		go func() {
 			time.Sleep(500 * time.Millisecond)
 			os.Exit(1)
 		}()
-		return response.Success(c, map[string]string{"status": "restarting", "message": "Service is restarting..."})
+		response.Success(c, map[string]string{"status": "restarting", "message": "Service is restarting..."})
 	})
 }
 
-func (s *Server) buildServicesList(serviceRegistry *registry.ServiceRegistry) []monitoring.ServiceInfo {
-	var servicesList []monitoring.ServiceInfo
-	for _, srv := range serviceRegistry.GetServices() {
-		var fullEndpoints []string
-		for _, endp := range srv.Endpoints() {
-			fullEndpoints = append(fullEndpoints, "/api/v1"+endp)
-		}
-
-		servicesList = append(servicesList, monitoring.ServiceInfo{
-			Name:       srv.Name(),
-			StructName: reflect.TypeOf(srv).Elem().String(),
-			Active:     srv.Enabled(),
-			Endpoints:  fullEndpoints,
-		})
-	}
-	return servicesList
-}
-
-// GetStatus satisfies monitoring.StatusProvider
-func (s *Server) GetStatus() map[string]interface{} {
-	diskStats, _ := utils.GetDiskUsage()
-	netStats, _ := utils.GetNetworkInfo()
-
-	checkEnabled := func(enabled bool, manager interface{}) bool {
-		return enabled && s.dependencies != nil && manager != nil
-	}
-
-	infra := map[string]bool{
-		"redis":    checkEnabled(s.config.Redis.Enabled, s.dependencies.RedisManager),
-		"kafka":    checkEnabled(s.config.Kafka.Enabled, s.dependencies.KafkaManager),
-		"postgres": checkEnabled(s.config.Postgres.Enabled || s.config.PostgresMultiConfig.Enabled, s.dependencies.PostgresManager),
-		"mongo":    checkEnabled(s.config.Mongo.Enabled || s.config.MongoMultiConfig.Enabled, s.dependencies.MongoManager),
-		"grafana":  checkEnabled(s.config.Grafana.Enabled, s.dependencies.GrafanaManager),
-		"cron":     checkEnabled(s.config.Cron.Enabled, s.dependencies.CronManager),
-		"minio":    checkEnabled(s.config.MinIO.Enabled, s.dependencies.MinIOManager),
-	}
-
-	return map[string]interface{}{
-		"version":        "1.0.0",
-		"services":       s.config.Services,
-		"infrastructure": infra,
-		"system": map[string]interface{}{
-			"disk":    diskStats,
-			"network": netStats,
-		},
-	}
-}
-
-// Shutdown performs graceful shutdown of all infrastructure components
 func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 	logger.Info("Starting graceful shutdown of infrastructure...")
 
 	go func() {
 		time.Sleep(10 * time.Second)
-		if logger != nil {
-			logger.Warn("Maximum shutdown time is 20s, force shutdown when timeout.")
-			logger.Fatal("Graceful shutdown timed out, force shutdown.", nil)
-		}
-		fmt.Println("Maximum shutdown time is 20s, force shutdown when timeout.")
+		logger.Warn("Maximum shutdown time is 20s, force shutdown when timeout.")
+		logger.Fatal("Graceful shutdown timed out, force shutdown.", nil)
+		utils.ClearScreen()
 		os.Exit(1)
 	}()
 
@@ -288,9 +183,10 @@ func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 		if closer == nil {
 			return
 		}
+
 		logger.Info("Shutting down " + name + "...")
-		if closerCloser, ok := closer.(interface{ Close() error }); ok {
-			if err := closerCloser.Close(); err != nil {
+		if c, ok := closer.(interface{ Close() error }); ok {
+			if err := c.Close(); err != nil {
 				shutdownErrors = append(shutdownErrors, fmt.Errorf("%s shutdown error: %w", name, err))
 				logger.Error("Error shutting down "+name, err)
 			} else {
@@ -299,11 +195,10 @@ func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 		}
 	}
 
-	shutdownComponent("Cron Manager", s.dependencies.CronManager)
-	logger.Info("MongoDB connections will be closed by infrastructure manager")
-	logger.Info("PostgreSQL connections will be closed by infrastructure manager")
-	shutdownComponent("Kafka Manager", s.dependencies.KafkaManager)
-	shutdownComponent("Redis Manager", s.dependencies.RedisManager)
+	// Dynamically shut down all registered components
+	for name, component := range s.dependencies.GetAll() {
+		shutdownComponent(name, component)
+	}
 
 	if len(shutdownErrors) > 0 {
 		logger.Warn("Graceful shutdown completed with errors", "error_count", len(shutdownErrors))
@@ -312,6 +207,7 @@ func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 		}
 		return fmt.Errorf("shutdown completed with %d errors", len(shutdownErrors))
 	}
+
 	logger.Info("Graceful shutdown completed successfully")
 	return nil
 }
