@@ -2,8 +2,8 @@ package infrastructure
 
 import (
 	"context"
-	"stackyard/config"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/logger"
 	"sync"
 	"time"
 )

@@ -422,7 +422,7 @@ func (ctx *SwaggerContext) verifyOutput(logger *Logger) error {
 func printBanner() {
 	fmt.Println("")
 	fmt.Println("   " + P_PURPLE + " /\\ " + RESET)
-	fmt.Println("   " + P_PURPLE + "(  )" + RESET + "   " + B_PURPLE + "Swagger Generator" + RESET + " " + GRAY + "for" + RESET + " " + B_WHITE + "Stackyard" + RESET)
+	fmt.Println("   " + P_PURPLE + "(  )" + RESET + "   " + B_PURPLE + "Swagger Generator" + RESET + " " + GRAY + "for" + RESET + " " + B_WHITE + "stackyrd" + RESET)
 	fmt.Println("   " + P_PURPLE + " \\/ " + RESET)
 	fmt.Println(GRAY + "----------------------------------------------------------------------" + RESET)
 }

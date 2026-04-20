@@ -15,9 +15,9 @@
   },
   "StringFileInfo": {
     "CompanyName": "John Doe Company",
-    "FileDescription": "Stackyard Project",
-    "ProductName": "Stackyard",
-    "InternalName": "Stackyard",
-    "OriginalFilename": "stackyard.exe"
+    "FileDescription": "stackyrd Project",
+    "ProductName": "stackyrd",
+    "InternalName": "stackyrd",
+    "OriginalFilename": "stackyrd.exe"
   }
 }

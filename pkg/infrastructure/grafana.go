@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"stackyard/config"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/logger"
 	"strings"
 	"time"
 

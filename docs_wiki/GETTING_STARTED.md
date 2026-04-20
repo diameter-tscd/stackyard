@@ -1,6 +1,6 @@
-# Getting Started with Stackyard
+# Getting Started with stackyrd
 
-This guide will get you up and running with Stackyard in minutes. Stackyard is a production-ready Go application framework with modular services, real-time monitoring, and extensive infrastructure integrations.
+This guide will get you up and running with stackyrd in minutes. stackyrd is a production-ready Go application framework with modular services, real-time monitoring, and extensive infrastructure integrations.
 
 ## Quick Start
 
@@ -13,8 +13,8 @@ This guide will get you up and running with Stackyard in minutes. Stackyard is a
 
 ```bash
 # Clone the repository
-git clone https://github.com/diameter-tscd/stackyard.git
-cd stackyard
+git clone https://github.com/diameter-tscd/stackyrd.git
+cd stackyrd
 
 # Install Go dependencies
 go mod download
@@ -71,8 +71,8 @@ Add to `internal/services/modules/service_hello.go`:
 package modules
 
 import (
-    "stackyard/pkg/response"
-    "github.com/labstack/echo/v4"
+    "stackyrd/pkg/response"
+    "github.com/gin-gonic/gin"
 )
 
 type HelloService struct {
@@ -87,11 +87,11 @@ func (s *HelloService) Name() string        { return "Hello Service" }
 func (s *HelloService) Enabled() bool       { return s.enabled }
 func (s *HelloService) Endpoints() []string { return []string{"/hello"} }
 
-func (s *HelloService) RegisterRoutes(g *echo.Group) {
+func (s *HelloService) RegisterRoutes(g *gin.RouterGroup) {
     g.GET("/hello", s.hello)
 }
 
-func (s *HelloService) hello(c echo.Context) error {
+func (s *HelloService) hello(c *gin.Context) error {
     return response.Success(c, map[string]string{
         "message": "Hello, World!",
         "status":  "running",

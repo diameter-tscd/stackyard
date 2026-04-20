@@ -3,8 +3,8 @@ package infrastructure
 import (
 	"context"
 	"io"
-	"stackyard/config"
-	"stackyard/pkg/logger"
+	"stackyrd/config"
+	"stackyrd/pkg/logger"
 	"time"
 
 	"github.com/minio/minio-go/v7"
