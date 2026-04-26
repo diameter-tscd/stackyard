@@ -28,6 +28,8 @@ func setupViperDefaults() {
 	viper.SetDefault("kafka.enabled", false)
 	viper.SetDefault("postgres.enabled", false)
 	viper.SetDefault("mongo.enabled", false)
+	viper.SetDefault("swagger.enabled", true)
+	viper.SetDefault("swagger.base_path", "/swagger")
 }
 
 type Config struct {
@@ -35,6 +37,7 @@ type Config struct {
 	Server              ServerConfig        `mapstructure:"server"`
 	Services            ServicesConfig      `mapstructure:"services"`
 	Auth                AuthConfig          `mapstructure:"auth"`
+	Swagger             SwaggerConfig       `mapstructure:"swagger"`
 	Redis               RedisConfig         `mapstructure:"redis"`
 	Kafka               KafkaConfig         `mapstructure:"kafka"`
 	Postgres            PostgresConfig      `mapstructure:"postgres"`
@@ -91,6 +94,11 @@ type EncryptionConfig struct {
 	Key                 string `mapstructure:"key"`
 	RotateKeys          bool   `mapstructure:"rotate_keys"`
 	KeyRotationInterval string `mapstructure:"key_rotation_interval"`
+}
+
+type SwaggerConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	BasePath string `mapstructure:"base_path"`
 }
 
 type AppConfig struct {

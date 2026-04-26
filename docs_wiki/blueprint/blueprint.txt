@@ -24,13 +24,12 @@ This project is a sophisticated Go-based boilerplate application with a modular 
 
 ### Key Characteristics:
 - **Language**: Go (Golang)
-- **Framework**: Echo for HTTP services
+- **Framework**: Gin for HTTP services
 - **ORM**: GORM for database operations with auto-migration
 - **Architecture**: Modular, service-oriented with multi-tenant support
 - **UI**: Terminal User Interface (TUI) using Bubble Tea
-- **Monitoring**: Real-time system and service monitoring with fully offline web dashboard
 - **Database**: Multiple PostgreSQL connections with dynamic switching
-- **Security**: API obfuscation, comprehensive error handling, AES-256 encryption
+- **Security**: Comprehensive error handling, AES-256 encryption
 
 ## 2. ARCHITECTURE & DESIGN
 
@@ -197,7 +196,6 @@ pagination.GetOffset()    // Calculates offset for DB queries
 
 **Implementation:**
 - **Main API Server**: Automatic GZIP compression for all HTTP responses in `internal/server/server.go`
-- **Monitoring Web UI**: GZIP compression enabled for all responses in `internal/monitoring/server.go`
 - **Default Behavior**: GZIP is enabled by default for all endpoints without configuration
 - **Performance Impact**: Typically reduces response sizes by 60-80% for text-based content (JSON, HTML, CSS, JS)
 
@@ -258,10 +256,10 @@ All services implement the `Service` interface:
 
 ```go
 type Service interface {
-    Name() string                      // Display name
-    RegisterRoutes(g *echo.Group)      // Register HTTP routes
-    Enabled() bool                     // Service active status
-    Endpoints() []string               // List of endpoints
+    Name() string                          // Display name
+    RegisterRoutes(g *gin.RouterGroup)     // Register HTTP routes
+    Enabled() bool                         // Service active status
+    Endpoints() []string                   // List of endpoints
 }
 ```
 
@@ -385,7 +383,31 @@ services:
 
 ### 7.1 Overview
 
-The TUI provides visual feedback during boot and real-time monitoring using Bubble Tea framework.
+- **Users Service**: No dependencies (always available)
+- **Products Service**: No dependencies (cache demo)
+- **Tasks Service**: PostgreSQL database connection
+- **Multi-Tenant Service**: PostgreSQL connection manager (multi-tenant)
+- **MongoDB Service**: MongoDB connection manager (multi-tenant)
+- **Broadcast Service**: No dependencies (broadcast utility)
+- **Grafana Service**: Grafana manager
+
+Services with missing dependencies are gracefully skipped during auto-discovery.
+
+### 6.4 Service Configuration
+
+```yaml
+services:
+  users_service: true
+  products_service: false
+  orders: true
+  inventory: true
+```
+
+## 7. TERMINAL USER INTERFACE (TUI)
+
+### 7.1 Overview
+
+The TUI provides visual feedback during boot and system status information using Bubble Tea framework.
 
 **Technologies:**
 - Bubble Tea: TUI framework
@@ -1648,7 +1670,19 @@ docs_wiki/
 ## 11. PROJECT STRUCTURE SUMMARY
 
 ```
-stackyard/
+docs_wiki/
+├── GETTING_STARTED.md          # Quick start guide for new users
+├── DEVELOPMENT.md              # Development guide for extending the app
+├── ARCHITECTURE.md             # Technical overview and design decisions
+├── REFERENCE.md                # Complete technical reference (config, APIs, advanced)
+└── blueprint/
+    └── blueprint.txt           # Internal technical blueprint (this file)
+```
+
+## 11. PROJECT STRUCTURE SUMMARY
+
+```
+stackyrd/
 ├── Dockerfile                  # Multi-stage Docker configuration
 ├── .dockerignore               # Docker ignore file
 ├── .gitignore                  # Git ignore file
@@ -1807,7 +1841,7 @@ stackyard/
 
 ### 11.2 Technical Highlights
 
-- **Echo Framework**: High-performance HTTP server
+- **Gin Framework**: High-performance HTTP server
 - **Bubble Tea**: Modern TUI framework
 - **GORM**: ORM for database operations
 - **Validator**: Request validation library
@@ -1953,7 +1987,7 @@ This project complies with open-source licensing best practices:
 The project uses various third-party dependencies, each with their own licenses. Key dependencies include:
 
 - **Go Standard Library**: BSD-style license (automatically compliant)
-- **Echo Framework**: MIT License
+- **Gin Framework**: MIT License
 - **GORM**: MIT License
 - **Bubble Tea**: MIT License
 - **MongoDB Go Driver**: Apache License 2.0

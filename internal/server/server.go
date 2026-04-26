@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
-	"reflect"
 	"time"
 
 	_ "stackyard/internal/services/modules"
@@ -18,8 +18,15 @@ import (
 	"stackyard/pkg/response"
 	"stackyard/pkg/utils"
 
-	"github.com/labstack/echo/v4"
-	echoMiddleware "github.com/labstack/echo/v4/middleware"
+	"stackyrd/config"
+	"stackyrd/internal/middleware"
+	"stackyrd/pkg/infrastructure"
+	"stackyrd/pkg/logger"
+	"stackyrd/pkg/registry"
+	"stackyrd/pkg/response"
+	"stackyrd/pkg/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
@@ -66,10 +73,9 @@ func New(cfg *config.Config, l *logger.Logger, b *monitoring.LogBroadcaster) *Se
 	}
 
 	return &Server{
-		echo:        e,
-		config:      cfg,
-		logger:      l,
-		broadcaster: b,
+		gin:    r,
+		config: cfg,
+		logger: l,
 	}
 }
 
@@ -140,14 +146,14 @@ func (s *Server) Start() error {
 	s.setConnectionDefaults(postgresConnMgr, mongoConnMgr)
 
 	s.logger.Info("Initializing Middleware...")
-	middleware.InitMiddlewares(s.echo, middleware.Config{
+	middleware.InitMiddlewares(s.gin, middleware.Config{
 		AuthType: s.config.Auth.Type,
 		Logger:   s.logger,
 	})
 
 	if s.config.Encryption.Enabled {
 		s.logger.Info("Initializing Encryption Middleware...")
-		s.echo.Use(middleware.EncryptionMiddleware(s.config, s.logger))
+		s.gin.Use(middleware.EncryptionMiddleware(s.config, s.logger))
 	}
 
 	s.logger.Info("Booting Services...")
@@ -177,7 +183,7 @@ func (s *Server) Start() error {
 	s.logger.Info("HTTP server starting immediately", "port", port, "env", s.config.App.Env)
 	s.logger.Info("Infrastructure components initializing in background...")
 
-	return s.echo.Start(":" + port)
+	return s.gin.Run(":" + port)
 }
 
 func (s *Server) setConnectionDefaults(postgresConnectionManager *infrastructure.PostgresConnectionManager, mongoConnectionManager *infrastructure.MongoConnectionManager) {
@@ -264,7 +270,29 @@ func (s *Server) GetStatus() map[string]interface{} {
 	}
 }
 
-// Shutdown performs graceful shutdown of all infrastructure components
+func (s *Server) registerHealthEndpoints() {
+	s.gin.GET("/health", func(c *gin.Context) {
+		response.Success(c, map[string]interface{}{
+			"status":                  "ok",
+			"server_ready":            true,
+			"infrastructure":          s.infraInitManager.GetStatus(),
+			"initialization_progress": s.infraInitManager.GetInitializationProgress(),
+		})
+	})
+
+	s.gin.GET("/health/infrastructure", func(c *gin.Context) {
+		response.Success(c, s.infraInitManager.GetStatus())
+	})
+
+	s.gin.POST("/restart", func(c *gin.Context) {
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			os.Exit(1)
+		}()
+		response.Success(c, map[string]string{"status": "restarting", "message": "Service is restarting..."})
+	})
+}
+
 func (s *Server) Shutdown(ctx context.Context, logger *logger.Logger) error {
 	logger.Info("Starting graceful shutdown of infrastructure...")
 

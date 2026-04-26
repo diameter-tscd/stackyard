@@ -1,5 +1,5 @@
 app:
-  name: "Stackyard"
+  name: "stackyrd"
   version: "1.0.0"
   debug: true
   env: "development"
@@ -8,7 +8,7 @@ app:
   quiet_startup: true     # suppress console logs (TUI only, logs still go to monitoring)
   enable_tui: true        # enable fancy TUI mode (false = traditional console logging)
 
-server:
+server:   
   port: "8080"
 
 services:
@@ -82,10 +82,10 @@ grafana:
 
 monitoring:
   enabled: true
-  port: "9090"
+  port: "x"
   password: "admin"
   obfuscate_api: true
-  title: "Stackyard"
+  title: "stackyrd"
   subtitle: "Monitoring Dashboard"
   max_photo_size_mb: 2
   upload_dir: "web/monitoring/uploads"
