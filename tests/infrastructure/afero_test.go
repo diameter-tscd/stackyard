@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"stackyrd/pkg/infrastructure"
+	"stackyard/pkg/infrastructure"
 )
 
 //go:embed testdata/config.yaml testdata/README.md testdata/test.txt

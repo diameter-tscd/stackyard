@@ -19,14 +19,14 @@ services:
       - POSTGRES_ENABLED=true
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_USER=stackyrd
-      - POSTGRES_PASSWORD=stackyrd123
-      - POSTGRES_DB=stackyrd
+      - POSTGRES_USER=stackyard
+      - POSTGRES_PASSWORD=stackyard123
+      - POSTGRES_DB=stackyard
       - KAFKA_ENABLED=true
       - KAFKA_BROKERS=kafka:9092
       - MONGO_ENABLED=true
       - MONGO_URI=mongodb://mongo:27017
-      - MONGO_DATABASE=stackyrd
+      - MONGO_DATABASE=stackyard
     volumes:
       - ./config.yaml:/app/config.yaml:ro
     depends_on:
@@ -60,14 +60,14 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=stackyrd
-      - POSTGRES_PASSWORD=stackyrd123
-      - POSTGRES_DB=stackyrd
+      - POSTGRES_USER=stackyard
+      - POSTGRES_PASSWORD=stackyard123
+      - POSTGRES_DB=stackyard
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stackyrd"]
+      test: ["CMD-SHELL", "pg_isready -U stackyard"]
       interval: 10s
       timeout: 5s
       retries: 5

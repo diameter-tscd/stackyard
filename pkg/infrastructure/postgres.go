@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"stackyrd/config"
-	"stackyrd/pkg/logger"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 	"sync"
 
 	_ "github.com/jackc/pgx/v5/stdlib"

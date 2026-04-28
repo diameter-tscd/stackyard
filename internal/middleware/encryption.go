@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"stackyrd/config"
-	"stackyrd/pkg/logger"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 )

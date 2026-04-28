@@ -2,8 +2,8 @@ package infrastructure
 
 import (
 	"net/http"
-	"stackyrd/config"
-	"stackyrd/pkg/logger"
+	"stackyard/config"
+	"stackyard/pkg/logger"
 	"time"
 )
 

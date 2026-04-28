@@ -5,116 +5,175 @@ import (
 	"sync"
 	"time"
 
-	"stackyrd/pkg/response"
+	"stackyard/pkg/response"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
-// RateLimiter implements a simple token bucket rate limiter
-type RateLimiter struct {
-	visitors map[string]*visitor
-	mu       sync.RWMutex
-	rate     int
-	window   time.Duration
+// RateLimiterConfig holds rate limiter configuration
+type RateLimiterConfig struct {
+	// Requests per time window
+	Requests int
+	// Time window duration
+	Window time.Duration
+	// Key function to identify clients (default: IP address)
+	KeyFunc func(c echo.Context) string
 }
 
-type visitor struct {
-	count    int
-	lastSeen time.Time
+// DefaultRateLimiterConfig returns default rate limiter configuration
+func DefaultRateLimiterConfig() RateLimiterConfig {
+	return RateLimiterConfig{
+		Requests: 60,
+		Window:   time.Minute,
+		KeyFunc:  DefaultKeyFunc,
+	}
+}
+
+// DefaultKeyFunc uses client IP address as the key
+func DefaultKeyFunc(c echo.Context) string {
+	return c.RealIP()
+}
+
+// rateLimitEntry tracks requests for a client
+type rateLimitEntry struct {
+	count   int
+	resetAt time.Time
+}
+
+// RateLimiter implements a token bucket rate limiter
+type RateLimiter struct {
+	config  RateLimiterConfig
+	clients map[string]*rateLimitEntry
+	mu      sync.RWMutex
+	cleanup *time.Ticker
 }
 
 // NewRateLimiter creates a new rate limiter
-func NewRateLimiter(rate int, window time.Duration) *RateLimiter {
+func NewRateLimiter(config RateLimiterConfig) *RateLimiter {
 	rl := &RateLimiter{
-		visitors: make(map[string]*visitor),
-		rate:     rate,
-		window:   window,
+		config:  config,
+		clients: make(map[string]*rateLimitEntry),
+		cleanup: time.NewTicker(time.Minute),
 	}
 
-	// Cleanup old visitors periodically
-	go rl.cleanup()
+	// Start cleanup goroutine
+	go rl.cleanupExpired()
 
 	return rl
 }
 
-func (rl *RateLimiter) cleanup() {
-	ticker := time.NewTicker(time.Minute)
-	for range ticker.C {
+// cleanupExpired removes expired entries
+func (rl *RateLimiter) cleanupExpired() {
+	for range rl.cleanup.C {
 		rl.mu.Lock()
 		now := time.Now()
-		for ip, v := range rl.visitors {
-			if now.Sub(v.lastSeen) > rl.window {
-				delete(rl.visitors, ip)
+		for key, entry := range rl.clients {
+			if now.After(entry.resetAt) {
+				delete(rl.clients, key)
 			}
 		}
 		rl.mu.Unlock()
 	}
 }
 
-func (rl *RateLimiter) isAllowed(ip string) bool {
+// Allow checks if a request is allowed
+func (rl *RateLimiter) Allow(key string) (bool, int, time.Time) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
 	now := time.Now()
-	v, exists := rl.visitors[ip]
+	entry, exists := rl.clients[key]
 
-	if !exists || now.Sub(v.lastSeen) > rl.window {
-		rl.visitors[ip] = &visitor{count: 1, lastSeen: now}
-		return true
+	if !exists || now.After(entry.resetAt) {
+		// Create new entry
+		rl.clients[key] = &rateLimitEntry{
+			count:   1,
+			resetAt: now.Add(rl.config.Window),
+		}
+		return true, rl.config.Requests - 1, now.Add(rl.config.Window)
 	}
 
-	if v.count >= rl.rate {
-		return false
+	if entry.count >= rl.config.Requests {
+		// Rate limit exceeded
+		return false, 0, entry.resetAt
 	}
 
-	v.count++
-	v.lastSeen = now
-	return true
+	// Increment counter
+	entry.count++
+	return true, rl.config.Requests - entry.count, entry.resetAt
 }
 
-// RateLimit middleware with default settings (60 requests per minute)
-func RateLimit() gin.HandlerFunc {
-	return RateLimitWithConfig(60, time.Minute)
+// Stop stops the cleanup goroutine
+func (rl *RateLimiter) Stop() {
+	rl.cleanup.Stop()
 }
 
-// RateLimitWithConfig middleware with custom settings
-func RateLimitWithConfig(rate int, window time.Duration) gin.HandlerFunc {
-	limiter := NewRateLimiter(rate, window)
+// RateLimit returns rate limiting middleware
+func RateLimit(config ...RateLimiterConfig) echo.MiddlewareFunc {
+	var cfg RateLimiterConfig
+	if len(config) > 0 {
+		cfg = config[0]
+	} else {
+		cfg = DefaultRateLimiterConfig()
+	}
 
-	return func(c *gin.Context) {
-		ip := c.ClientIP()
+	if cfg.KeyFunc == nil {
+		cfg.KeyFunc = DefaultKeyFunc
+	}
 
-		if !limiter.isAllowed(ip) {
-			response.Error(c, http.StatusTooManyRequests, "RATE_LIMIT_EXCEEDED", "Rate limit exceeded. Please try again later.", map[string]interface{}{
-				"retry_after": time.Now().Add(window).Unix(),
-			})
-			c.Abort()
-			return
+	limiter := NewRateLimiter(cfg)
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			key := cfg.KeyFunc(c)
+			allowed, remaining, resetAt := limiter.Allow(key)
+
+			// Set rate limit headers
+			c.Response().Header().Set("X-RateLimit-Limit", string(rune(cfg.Requests+'0')))
+			c.Response().Header().Set("X-RateLimit-Remaining", string(rune(remaining+'0')))
+			c.Response().Header().Set("X-RateLimit-Reset", resetAt.Format(time.RFC3339))
+
+			if !allowed {
+				return response.Error(c, http.StatusTooManyRequests, "RATE_LIMIT_EXCEEDED", "Rate limit exceeded. Please try again later.", map[string]interface{}{
+					"retry_after": resetAt.Unix(),
+				})
+			}
+
+			return next(c)
 		}
-
-		c.Next()
 	}
 }
 
-// RateLimitPerUser middleware based on user ID (requires JWT)
-func RateLimitPerUser(rate int, window time.Duration) gin.HandlerFunc {
-	limiter := NewRateLimiter(rate, window)
+// RateLimitWithConfig returns rate limiting middleware with custom config
+func RateLimitWithConfig(requests int, window time.Duration) echo.MiddlewareFunc {
+	return RateLimit(RateLimiterConfig{
+		Requests: requests,
+		Window:   window,
+		KeyFunc:  DefaultKeyFunc,
+	})
+}
 
-	return func(c *gin.Context) {
-		userID, exists := c.Get("user_id")
-		if !exists {
-			c.Next()
-			return
-		}
+// RateLimitPerIP returns rate limiting middleware per IP
+func RateLimitPerIP(requests int, window time.Duration) echo.MiddlewareFunc {
+	return RateLimit(RateLimiterConfig{
+		Requests: requests,
+		Window:   window,
+		KeyFunc:  DefaultKeyFunc,
+	})
+}
 
-		if !limiter.isAllowed(userID.(string)) {
-			response.Error(c, http.StatusTooManyRequests, "RATE_LIMIT_EXCEEDED", "Rate limit exceeded. Please try again later.", map[string]interface{}{
-				"retry_after": time.Now().Add(window).Unix(),
-			})
-			c.Abort()
-			return
-		}
-
-		c.Next()
-	}
+// RateLimitPerUser returns rate limiting middleware per user (requires auth)
+func RateLimitPerUser(requests int, window time.Duration) echo.MiddlewareFunc {
+	return RateLimit(RateLimiterConfig{
+		Requests: requests,
+		Window:   window,
+		KeyFunc: func(c echo.Context) string {
+			// Try to get user ID from context (set by auth middleware)
+			if userID := c.Get("user_id"); userID != nil {
+				return "user:" + userID.(string)
+			}
+			// Fallback to IP
+			return c.RealIP()
+		},
+	})
 }

@@ -2,10 +2,9 @@ package middleware
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 // CORSConfig holds CORS configuration
@@ -13,81 +12,131 @@ type CORSConfig struct {
 	AllowOrigins     []string
 	AllowMethods     []string
 	AllowHeaders     []string
+	ExposeHeaders    []string
 	AllowCredentials bool
 	MaxAge           int
 }
 
-// Default CORS configuration
-var defaultCORSConfig = CORSConfig{
-	AllowOrigins:     []string{"*"},
-	AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-	AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID"},
-	AllowCredentials: true,
-	MaxAge:           86400,
+// DefaultCORSConfig returns default CORS configuration
+func DefaultCORSConfig() CORSConfig {
+	return CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodDelete,
+		},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+		},
+		ExposeHeaders:    []string{},
+		AllowCredentials: false,
+		MaxAge:           86400,
+	}
 }
 
-// CORSAllowAll enables CORS for all origins
-func CORSAllowAll() gin.HandlerFunc {
-	return CORS(defaultCORSConfig)
-}
+// CORS returns CORS middleware
+func CORS(config ...CORSConfig) echo.MiddlewareFunc {
+	var cfg CORSConfig
+	if len(config) > 0 {
+		cfg = config[0]
+	} else {
+		cfg = DefaultCORSConfig()
+	}
 
-// CORSWithConfig enables CORS with specific origins
-func CORSWithConfig(allowOrigins []string) gin.HandlerFunc {
-	config := defaultCORSConfig
-	config.AllowOrigins = allowOrigins
-	return CORS(config)
-}
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			res := c.Response()
 
-// CORS enables CORS with full configuration
-func CORS(config CORSConfig) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
+			origin := req.Header.Get(echo.HeaderOrigin)
 
-		// Check if origin is allowed
-		allowed := false
-		for _, o := range config.AllowOrigins {
-			if o == "*" || o == origin || matchSubdomain(o, origin) {
-				allowed = true
-				break
+			allowOrigin := ""
+			for _, o := range cfg.AllowOrigins {
+				if o == "*" {
+					allowOrigin = "*"
+					break
+				}
+				if o == origin {
+					allowOrigin = origin
+					break
+				}
+				if strings.HasPrefix(o, "*.") {
+					domain := strings.TrimPrefix(o, "*")
+					if strings.HasSuffix(origin, domain) {
+						allowOrigin = origin
+						break
+					}
+				}
 			}
+
+			if allowOrigin != "" {
+				res.Header().Set(echo.HeaderAccessControlAllowOrigin, allowOrigin)
+			}
+
+			if req.Method == http.MethodOptions {
+				res.Header().Set(echo.HeaderAccessControlAllowMethods, strings.Join(cfg.AllowMethods, ","))
+				res.Header().Set(echo.HeaderAccessControlAllowHeaders, strings.Join(cfg.AllowHeaders, ","))
+
+				if len(cfg.ExposeHeaders) > 0 {
+					res.Header().Set(echo.HeaderAccessControlExposeHeaders, strings.Join(cfg.ExposeHeaders, ","))
+				}
+
+				if cfg.AllowCredentials {
+					res.Header().Set(echo.HeaderAccessControlAllowCredentials, "true")
+				}
+
+				if cfg.MaxAge > 0 {
+					res.Header().Set(echo.HeaderAccessControlMaxAge, string(rune(cfg.MaxAge)))
+				}
+
+				return c.NoContent(http.StatusNoContent)
+			}
+
+			if len(cfg.ExposeHeaders) > 0 {
+				res.Header().Set(echo.HeaderAccessControlExposeHeaders, strings.Join(cfg.ExposeHeaders, ","))
+			}
+
+			if cfg.AllowCredentials {
+				res.Header().Set(echo.HeaderAccessControlAllowCredentials, "true")
+			}
+
+			return next(c)
 		}
-
-		if !allowed {
-			c.Next()
-			return
-		}
-
-		// Set CORS headers
-		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-		c.Writer.Header().Set("Vary", "Origin")
-
-		if config.AllowCredentials {
-			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		}
-
-		c.Writer.Header().Set("Access-Control-Allow-Methods", strings.Join(config.AllowMethods, ", "))
-		c.Writer.Header().Set("Access-Control-Allow-Headers", strings.Join(config.AllowHeaders, ", "))
-
-		if config.MaxAge > 0 {
-			c.Writer.Header().Set("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
-		}
-
-		// Handle preflight request
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
 	}
 }
 
-// matchSubdomain checks if a wildcard subdomain pattern matches the origin
-func matchSubdomain(pattern, origin string) bool {
-	if !strings.HasPrefix(pattern, "*.") {
-		return false
-	}
+// CORSWithConfig returns CORS middleware with custom config
+func CORSWithConfig(allowOrigins []string) echo.MiddlewareFunc {
+	return CORS(CORSConfig{
+		AllowOrigins: allowOrigins,
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodDelete,
+		},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+		},
+		ExposeHeaders:    []string{},
+		AllowCredentials: false,
+		MaxAge:           86400,
+	})
+}
 
-	suffix := pattern[1:] // Remove the *
-	return strings.HasSuffix(origin, suffix)
+// CORSAllowAll returns CORS middleware that allows all origins
+func CORSAllowAll() echo.MiddlewareFunc {
+	return CORS(DefaultCORSConfig())
 }

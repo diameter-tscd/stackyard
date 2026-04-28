@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src=".assets/stackyrd-banner.png" alt="stackyrd" style="width: 100%; max-width: 700px;"/>
+  <img src=".assets/Stackyard_logo.PNG" alt="Stackyard" style="width: 50%; max-width: 400px;"/>
 </div>
 <div align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"/>
@@ -49,6 +49,42 @@ go run scripts/build/build.go
 
 **[Full Documentation](docs_wiki/)** - Comprehensive guides and references
 
+## Project Structure
+
+```
+stackyard/
+├── .github/                 # GitHub Actions CI/CD workflows
+│   └── workflows/          # Automated testing and deployment
+├── cmd/                     # Application entry points
+│   └── app/                # Main application executable
+├── config/                  # Configuration management
+├── docs_wiki/              # Comprehensive project documentation
+│   └── blueprint/          # Project architecture analysis
+├── internal/                # Private application packages
+│   ├── middleware/         # HTTP middleware (auth, security)
+│   ├── monitoring/         # Web monitoring dashboard backend
+│   ├── server/             # HTTP server setup and routing
+│   └── services/           # Modular business services
+│       └── modules/        # Individual service implementations
+├── pkg/                    # Public reusable packages
+│   ├── infrastructure/     # External service integrations
+│   ├── logger/             # Structured logging utilities
+│   ├── request/            # Request validation and binding
+│   ├── response/           # Standardized API responses
+│   ├── tui/                # Terminal User Interface components
+│   └── utils/              # General utility functions
+├── scripts/                # Build and utility scripts
+└── web/                    # Web interface assets
+    └── monitoring/         # Monitoring dashboard frontend
+        └── assets/         # Static web assets
+            ├── css/        # Stylesheets
+            └── js/         # JavaScript files
+```
+
 ## License
 
-Distributed under the Apache License Version 2.0. See `LICENSE` for full information.
+Apache License Version 2.0: [LICENSE](LICENSE)
+
+---
+
+**Built using Go, Echo, Alpine.js, Tailwind CSS**

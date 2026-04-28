@@ -1,8 +1,8 @@
 package examples
 
 import (
-	"stackyrd/pkg/request"
-	"stackyrd/pkg/response"
+	"stackyard/pkg/request"
+	"stackyard/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

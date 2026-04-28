@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stackyrd
+  name: stackyard
   namespace: default
   labels:
-    app: stackyrd
+    app: stackyard
     version: "1.0.0"
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: stackyrd
+      app: stackyard
   template:
     metadata:
       labels:
-        app: stackyrd
+        app: stackyard
         version: "1.0.0"
     spec:
       containers:
-        - name: stackyrd
-          image: stackyrd:latest
+        - name: stackyard
+          image: stackyard:latest
           ports:
             - name: http
               containerPort: 8080
@@ -65,4 +65,4 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: stackyrd-config
+            name: stackyard-config

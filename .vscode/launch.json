@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/app/main.go",
-            "output": "${workspaceFolder}/stackyrd"
+            "output": "${workspaceFolder}/stackyard"
         },
         {
             "name": "Launch Server (Unix)",

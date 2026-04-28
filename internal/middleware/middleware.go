@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"stackyrd/pkg/logger"
+	"stackyard/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -72,13 +72,47 @@ func PermissionCheck(l *logger.Logger) gin.HandlerFunc {
 		// "Accept permission" implies we default to allow, but strictly block generic DELETE actions
 		// if they are considered "delete data".
 
-		if c.Request.Method == http.MethodDelete {
-			l.Warn("Blocked DELETE attempt due to permission policy", "path", c.Request.URL.Path, "ip", c.ClientIP())
-			c.JSON(http.StatusForbidden, map[string]string{
-				"error": "Permission Denied: DELETE actions are restricted.",
-			})
-			c.Abort()
-			return
+			err := next(c)
+
+			req := c.Request()
+			res := c.Response()
+
+			status := res.Status
+			method := req.Method
+			path := req.URL.Path
+			latency := time.Since(start)
+
+			msg := fmt.Sprintf("%d | %s | %s | %v", status, method, path, latency)
+
+			if status >= 500 {
+				l.Error(msg, err)
+			} else if status >= 400 {
+				l.Warn(msg)
+			} else {
+				l.Info(msg)
+			}
+			return err
+		}
+	}
+}
+
+// PermissionCheck enforces "allow accept permission except data deletion"
+func PermissionCheck(l *logger.Logger) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			// This middleware intercepts all requests.
+			// "Accept permission" implies we default to allow, but strictly block generic DELETE actions
+			// if they are considered "delete data".
+
+			if c.Request().Method == http.MethodDelete {
+				l.Warn("Blocked DELETE attempt due to permission policy", "path", c.Request().URL.Path, "ip", c.RealIP())
+				return c.JSON(http.StatusForbidden, map[string]string{
+					"error": "Permission Denied: DELETE actions are restricted.",
+				})
+			}
+
+			// For other methods (GET, POST, PUT, PATCH), we "accept permission" (proceed).
+			return next(c)
 		}
 
 		c.Next()

@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"stackyrd/config"
-	"stackyrd/pkg/utils"
+	"stackyard/config"
+	"stackyard/pkg/utils"
 )
 
 // ConfigManager handles all configuration loading and validation
@@ -70,7 +70,7 @@ func (cm *ConfigManager) ValidateConfig(cfg *config.Config) error {
 	}
 
 	// Validate port availability
-	if err := utils.CheckPortAvailability(cfg.Server.Port); err != nil {
+	if err := utils.CheckPortAvailability(cfg.Server.Port, cfg.Monitoring.Port, cfg.Monitoring.Enabled); err != nil {
 		return fmt.Errorf("%s: %w", ErrPortError, err)
 	}
 

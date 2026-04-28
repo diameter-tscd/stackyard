@@ -1,16 +1,16 @@
 # Architecture Overview
 
-This document provides a high-level overview of stackyrd's architecture, design decisions, and key concepts. Understanding this foundation will help you build effectively with the framework.
+This document provides a high-level overview of Stackyard's architecture, design decisions, and key concepts. Understanding this foundation will help you build effectively with the framework.
 
 ## System Overview
 
-stackyrd is a modular, service-oriented Go application framework built on top of the Gin web framework. It emphasizes clean architecture, dependency injection, and production readiness with comprehensive monitoring and infrastructure integrations.
+Stackyard is a modular, service-oriented Go application framework built on top of the Echo web framework. It emphasizes clean architecture, dependency injection, and production readiness with comprehensive monitoring and infrastructure integrations.
 
 ## Core Architecture Principles
 
 ### 1. Clean Architecture
 
-stackyrd follows clean architecture principles with clear separation of concerns:
+Stackyard follows clean architecture principles with clear separation of concerns:
 
 ```
 ┌─────────────────────────────────────┐
@@ -70,7 +70,7 @@ type PostgresManager struct {
 ### Application Structure
 
 ```
-stackyrd/
+stackyard/
 ├── cmd/app/           # Application entry point
 ├── config/            # Configuration management
 ├── internal/          # Private application code
@@ -92,7 +92,7 @@ stackyrd/
 ### Request Flow
 
 ```
-1. HTTP Request → 2. Gin Router → 3. Middleware → 4. Handler → 5. Response
+1. HTTP Request → 2. Echo Router → 3. Middleware → 4. Handler → 5. Response
 
    ↓                    ↓                ↓              ↓             ↓
    Client            Routing          Auth/Logging   Business Logic  JSON
@@ -150,7 +150,7 @@ func init() {
 
 ### Database Managers
 
-stackyrd supports multiple database types through abstracted managers with **multi-tenant architecture**:
+Stackyard supports multiple database types through abstracted managers with **multi-tenant architecture**:
 
 #### PostgreSQL Manager
 - **Multi-tenant support**: Dynamic database switching per tenant
@@ -255,7 +255,7 @@ Configuration is managed through a **hierarchical YAML structure** with **multi-
 
 ```yaml
 app:          # Application-level settings
-  name: "stackyrd"
+  name: "Stackyard"
   debug: true
   env: "development"
 
@@ -689,8 +689,8 @@ go run cmd/app/main.go
 
 ## Conclusion
 
-stackyrd's architecture emphasizes **modularity**, **scalability**, and **maintainability** through clean architecture principles, service-oriented design, and comprehensive infrastructure abstractions. The framework provides a solid foundation for building production-ready applications while maintaining developer productivity and code quality.
+Stackyard's architecture emphasizes **modularity**, **scalability**, and **maintainability** through clean architecture principles, service-oriented design, and comprehensive infrastructure abstractions. The framework provides a solid foundation for building production-ready applications while maintaining developer productivity and code quality.
 
-The combination of **async processing**, **dependency injection**, and **configuration-driven behavior** makes stackyrd suitable for applications ranging from simple APIs to complex, multi-tenant SaaS platforms.
+The combination of **async processing**, **dependency injection**, and **configuration-driven behavior** makes Stackyard suitable for applications ranging from simple APIs to complex, multi-tenant SaaS platforms.
 
 For detailed implementation guides, see the **[Development Guide](DEVELOPMENT.md)**. For complete API reference, see the **[API Reference](REFERENCE.md)**.

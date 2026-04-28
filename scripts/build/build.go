@@ -20,10 +20,12 @@ import (
 // Configuration variables
 var (
 	DIST_DIR   = "dist"
-	APP_NAME   = "stackyrd"
+	APP_NAME   = "stackyard"
 	MAIN_PATH  = "./cmd/app"
 	CONFIG_YML = "config.yaml"
 	BANNER_TXT = "banner.txt"
+	DB_FILE    = "monitoring_users.db"
+	WEB_DIR    = "web"
 )
 
 // ANSI Colors
@@ -377,6 +379,7 @@ func (ctx *BuildContext) createBackup(logger *Logger) error {
 		APP_NAME + ".exe",
 		CONFIG_YML,
 		BANNER_TXT,
+		DB_FILE,
 	}
 
 	for _, file := range filesToBackup {
@@ -386,6 +389,13 @@ func (ctx *BuildContext) createBackup(logger *Logger) error {
 		if err := moveFile(src, dst); err != nil {
 			logger.Warn("Failed to backup %s: %v", file, err)
 		}
+	}
+
+	// Move web directory
+	webSrc := filepath.Join(ctx.DistPath, WEB_DIR)
+	webDst := filepath.Join(ctx.BackupPath, WEB_DIR)
+	if err := moveDir(webSrc, webDst); err != nil {
+		logger.Warn("Failed to backup web directory: %v", err)
 	}
 
 	logger.Success("Backup created at: %s", ctx.BackupPath)
@@ -598,8 +608,10 @@ func (ctx *BuildContext) copyAssets(logger *Logger) error {
 		src string
 		dst string
 	}{
+		{WEB_DIR, filepath.Join(ctx.DistPath, WEB_DIR)},
 		{CONFIG_YML, filepath.Join(ctx.DistPath, CONFIG_YML)},
 		{BANNER_TXT, filepath.Join(ctx.DistPath, BANNER_TXT)},
+		{DB_FILE, filepath.Join(ctx.DistPath, DB_FILE)},
 	}
 
 	for _, asset := range assets {
