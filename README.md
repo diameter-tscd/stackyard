@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src=".assets/stackyrd-banner.png" alt="stackyrd" style="width: 100%; max-width: 700px;"/>
+  <img src=".github/assets/stackyrd-banner.png" alt="stackyrd" style="width: 100%; max-width: 700px;"/>
 </div>
 <div align="center">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"/>
@@ -35,7 +35,7 @@ go run scripts/build/build.go
 
 ## Preview
 
-![Console](.assets/console.png)
+![Console](.github/assets/console.png)
 
 ## Key Features
 
