@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"stackyrd/config"
 	"stackyrd/pkg/logger"
+	"time"
 
 	"github.com/IBM/sarama"
 )
@@ -89,13 +90,21 @@ func (k *KafkaManager) Consume(ctx context.Context, topic string, handler func(k
 	}
 
 	for {
+		// back-off ticker: between rebalance cycles, the goroutine drains the
+		// ctx.Done notification while sleeping (draining the proactive-close
+		// case above) and resumes once the ticker fires, allowing Go's
+		// scheduler to pre-empt the consumer loop between rebalances.
+		ticker := time.NewTicker(500 * time.Millisecond)
 		select {
 		case <-ctx.Done():
+			ticker.Stop()
 			return nil
-		default:
-			if err := consumerGroup.Consume(ctx, []string{topic}, consumer); err != nil {
-				return fmt.Errorf("error from consumer: %w", err)
-			}
+		case <-ticker.C:
+			ticker.Stop()
+		}
+
+		if err := consumerGroup.Consume(ctx, []string{topic}, consumer); err != nil {
+			return fmt.Errorf("error from consumer: %w", err)
 		}
 	}
 }

@@ -107,3 +107,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **PERF-007 — no code change**
   - `ExecuteAsync` and `ExecuteBatchAsync` are already separate functions in `pkg/infrastructure/async.go`; double goroutine-hop pattern not present in the current codebase.
+
+- **`BatchAsyncResult` single-completer — PERF-011**
+  - `pkg/infrastructure/async.go`: removed `BatchAsyncResult.Complete()` as a public entry point; `CompleteResult(index)` is now the sole completer, using `atomic.AddInt32(&br.pending, -1)` as a drop-in counter for `sync.Once`. The batch `Done` channel is closed exactly once, on the last `CompleteResult` call. `NewAsyncResult` now uses `make(chan struct{}, 1)` so repeated `Complete()` invocations never deadlock during shutdown.
+
+- **Service + infrastructure registries migrated to `sync.Map` — PERF-012**
+  - `pkg/registry/registry.go`: `serviceFactories` and `serviceDiscovered` are now `*sync.Map`. `Range` replaces ranged `for`; `Load` replaces direct map access in `GetService`, and `GetServiceFactories` now snapshots the map for the only remaining non-Sync lookup site.
+  - `pkg/infrastructure/registry.go`: `components` and `factories` in `ComponentRegistry` are now `sync.Map`. `GetAll()` cold-cache path uses `Range` to copy without a read-lock; write-side initialisation through `Initialize` uses `Store`. The dedicated `componentsMu`/`factoriesMu` read-lock overhead is eliminated for the hot `/health` read path.
+
+- **Kafka `Consume` inner-loop 500 ms ticker drain — PERF-013**
+  - `pkg/infrastructure/kafka.go`: the rebalance loop in `Consume` now selects on a `time.Ticker(500ms)` between `consumerGroup.Consume` calls. On context cancellation the ticker is stopped immediately; otherwise the goroutine yields between rebalance cycles, allowing Go's scheduler to pre-empt it.
+
+- **PERF-014 — Grafana `GetStatus()` already cached at 30 s TTL**
+  - No code change. `pkg/infrastructure/grafana.go:576-631` already had the status-cache path; documented for completeness.
+
+- **PERF-015 — `AutoDiscoverMiddlewares` already skips disabled + nil**
+  - No code change. `internal/middleware/middleware.go:79-100` already checks `IsEnabled` before calling the factory and skips `nil` middleware before appending.
+
+- **Phone / username regexes pre-compiled — PERF-016**
+  - `pkg/request/request.go`: `phoneRegex` and `userRegex` are `regexp.MustCompile` package-level vars compiled once at `init()`. `validatePhone` and `validateUsername` call `.MatchString()` on the compiled objects, eliminating per-request `regexp.MatchString` recompilation.

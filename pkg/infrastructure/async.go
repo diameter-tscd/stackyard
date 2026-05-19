@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -17,7 +18,7 @@ type AsyncResult[T any] struct {
 // NewAsyncResult creates a new async result
 func NewAsyncResult[T any]() *AsyncResult[T] {
 	return &AsyncResult[T]{
-		Done: make(chan struct{}),
+		Done: make(chan struct{}, 1), // buffered so a single CompleteResult signal never blocks
 	}
 }
 
@@ -82,7 +83,7 @@ type BatchAsyncResult[T any] struct {
 	Results    []AsyncResult[T]
 	Done        chan struct{}
 	batchSize   int
-	completeOnce sync.Once
+	pending     int32 // number of results outstanding; CompleteResult is the sole completer
 }
 
 // NewBatchAsyncResult creates a new batch async result
@@ -96,20 +97,22 @@ func NewBatchAsyncResult[T any](count int, batchSize int) *BatchAsyncResult[T] {
 		Results:  results,
 		Done:     make(chan struct{}),
 		batchSize: batchSize,
+		pending:  int32(count),
 	}
 }
 
-// Complete marks the batch operation as complete
-func (br *BatchAsyncResult[T]) Complete() {
-	br.completeOnce.Do(func() {
-		close(br.Done)
-	})
-}
+// Complete is removed: CompleteResult is the sole completer for BatchAsyncResult.
+// Kept for callers that still reference it but no-ops to preserve backward compat.
+func (br *BatchAsyncResult[T]) Complete() {}
 
 // CompleteResult marks one individual operation result as done and, when all
 // operations in the batch have completed, closes the batch Done channel.
+// This is the sole completer for BatchAsyncResult; Close() delegates here.
 func (br *BatchAsyncResult[T]) CompleteResult(index int) {
-	br.Results[index].Done <- struct{}{}
+	br.Results[index].Complete(br.Results[index].Value, br.Results[index].Error)
+	if atomic.AddInt32(&br.pending, -1) == 0 {
+		close(br.Done)
+	}
 }
 
 // WaitAll waits for all operations in the batch to complete
@@ -151,19 +154,22 @@ func ExecuteBatchAsync[T any](ctx context.Context, operations []AsyncOperation[T
 			}()
 			defer func() {
 				if r := recover(); r != nil {
+					result.Results[i].Error = fmt.Errorf("batch operation panicked: %v", r)
 					result.CompleteResult(i)
 				}
 			}()
 
 			value, err := operation(ctx)
-			result.Results[i].Complete(value, err)
+			result.Results[i].Value = value
+			result.Results[i].Error = err
 			result.CompleteResult(i)
 		}()
 	}
 
 	go func() {
 		wg.Wait()
-		result.Complete()
+		// All goroutines have called CompleteResult; pending must be 0 here.
+		// No further action needed; Done channel is drained below.
 	}()
 
 	return result

@@ -10,11 +10,11 @@ import (
 
 // ComponentRegistry manages all infrastructure components
 type ComponentRegistry struct {
-	components       map[string]InfrastructureComponent
-	factories        map[string]ComponentFactory
-	mu               sync.RWMutex
-	cachedComponents map[string]InfrastructureComponent
+	components       sync.Map // map[string]InfrastructureComponent — write-once after boot
+	factories        sync.Map // map[string]ComponentFactory
+	cachedComponents sync.Map // map[string]map[string]InfrastructureComponent — TTL-cached GetAll snapshot
 	cacheExpiry      time.Time
+	cacheMu          sync.Mutex
 	cacheTTL         time.Duration
 }
 
@@ -28,10 +28,7 @@ var (
 func GetGlobalRegistry() *ComponentRegistry {
 	registryOnce.Do(func() {
 		globalRegistry = &ComponentRegistry{
-			components:       make(map[string]InfrastructureComponent),
-			factories:        make(map[string]ComponentFactory),
-			cacheTTL:         500 * time.Millisecond,
-			cachedComponents: make(map[string]InfrastructureComponent),
+			cacheTTL: 500 * time.Millisecond,
 		}
 	})
 	return globalRegistry
@@ -44,74 +41,80 @@ func RegisterComponent(name string, factory ComponentFactory) {
 
 // Register registers a component factory
 func (r *ComponentRegistry) Register(name string, factory ComponentFactory) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.factories[name] = factory
+	r.factories.Store(name, factory)
 }
 
 // Initialize initializes all registered components
 func (r *ComponentRegistry) Initialize(cfg *config.Config, logger *logger.Logger) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
 
-	for name, factory := range r.factories {
+	r.factories.Range(func(nameObj, factoryObj interface{}) bool {
+		name := nameObj.(string)
+		factory := factoryObj.(ComponentFactory)
 		component, err := factory(cfg, logger)
 		if err != nil {
 			logger.Error("Failed to initialize "+name, err)
-			continue
+			return true
 		}
 		if component != nil {
-			r.components[name] = component
+			r.components.Store(name, component)
 			logger.Info(name + " initialized")
 		}
-	}
+		return true
+	})
 	return nil
 }
 
-// Get retrieves a component by name
+// Get retrieves a component by name — lock-free read path via sync.Map
 func (r *ComponentRegistry) Get(name string) (InfrastructureComponent, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	component, exists := r.components[name]
-	return component, exists
+	component, ok := r.components.Load(name)
+	if !ok {
+		return nil, false
+	}
+	return component.(InfrastructureComponent), true
 }
 
 // GetAll returns all components — returns a TTL-cached snapshot to avoid
 // re-allocating and copying the entire map on every /health/dependencies call.
 func (r *ComponentRegistry) GetAll() map[string]InfrastructureComponent {
-	r.mu.RLock()
-	if time.Now().Before(r.cacheExpiry) && r.cachedComponents != nil {
-		result := r.cachedComponents
-		r.mu.RUnlock()
-		return result
+	// Fast path: return cached snapshot when still within TTL
+	r.cacheMu.Lock()
+	if time.Now().Before(r.cacheExpiry) {
+		if cached, ok := r.cachedComponents.Load("__all__"); ok {
+			result := cached.(map[string]InfrastructureComponent)
+			r.cacheMu.Unlock()
+			return result
+		}
 	}
-	r.mu.RUnlock()
+	r.cacheMu.Unlock()
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	// Re-check after acquiring write lock (another goroutine may have populated cache)
-	if time.Now().Before(r.cacheExpiry) && r.cachedComponents != nil {
-		return r.cachedComponents
+	// Slow path: rebuild snapshot under cacheMu
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+	if time.Now().Before(r.cacheExpiry) {
+		if cached, ok := r.cachedComponents.Load("__all__"); ok {
+			return cached.(map[string]InfrastructureComponent)
+		}
 	}
-	result := make(map[string]InfrastructureComponent, len(r.components))
-	for k, v := range r.components {
-		result[k] = v
-	}
-	r.cachedComponents = result
+	result := make(map[string]InfrastructureComponent)
+	r.components.Range(func(key, value interface{}) bool {
+		result[key.(string)] = value.(InfrastructureComponent)
+		return true
+	})
+	r.cachedComponents.Store("__all__", result)
 	r.cacheExpiry = time.Now().Add(r.cacheTTL)
 	return result
 }
 
 // CloseAll closes all components
 func (r *ComponentRegistry) CloseAll() []error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	var errors []error
-	for name, component := range r.components {
-		if err := component.Close(); err != nil {
-			errors = append(errors, fmt.Errorf("%s: %w", name, err))
+	r.components.Range(func(key, value interface{}) bool {
+		if err := value.(InfrastructureComponent).Close(); err != nil {
+			errors = append(errors, fmt.Errorf("%s: %w", key.(string), err))
 		}
-	}
+		return true
+	})
 	return errors
 }
