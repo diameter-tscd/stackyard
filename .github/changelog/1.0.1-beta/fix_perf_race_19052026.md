@@ -38,10 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Single `time.Now()` capture per API response**
   - `Success`, `SuccessWithMeta`, `Created`, and `Error` in `pkg/response/response.go` now call `now := time.Now()` once and derive both `Timestamp` and `Datetime` from the same value, halving the wall-clock overhead of every JSON response.
 
-- **500 ms TTL cache for `ComponentRegistry.GetAll()` and `Dependencies.GetAll()`**
-  - `GetAll()` in `pkg/infrastructure/registry.go` and `pkg/registry/dependencies.go` now returns a cached snapshot for a configurable 500 ms window instead of re-allocating and re-copying the entire map on every call.
+- **2 s TTL cache for `ComponentRegistry.GetAll()` and `Dependencies.GetAll()`**
+  - `GetAll()` in `pkg/infrastructure/registry.go` and `pkg/registry/dependencies.go` now returns a cached pointer snapshot for a 2 s window instead of re-allocating and re-copying the entire map on every call.
   - Cache is invalidated on any `Dependencies.Set()` mutation.
-  - `/health/dependencies` endpoint in `internal/server/server.go` rewritten to snapshot each `GetAll()` result once locally instead of inline-repeated map walks.
+  - `/health/dependencies` endpoint in `internal/server/server.go` snapshots each `GetAll()` result once locally.
 
 - **`ExecuteBatchAsync` capped to bounded goroutine waves**
   - `pkg/infrastructure/async.go` now accepts a `batchSize` parameter (default 100) and uses a semaphore (`chan struct{}`) to limit the number of live goroutines in a batch.
@@ -111,9 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`BatchAsyncResult` single-completer — PERF-011**
   - `pkg/infrastructure/async.go`: removed `BatchAsyncResult.Complete()` as a public entry point; `CompleteResult(index)` is now the sole completer, using `atomic.AddInt32(&br.pending, -1)` as a drop-in counter for `sync.Once`. The batch `Done` channel is closed exactly once, on the last `CompleteResult` call. `NewAsyncResult` now uses `make(chan struct{}, 1)` so repeated `Complete()` invocations never deadlock during shutdown.
 
-- **Service + infrastructure registries migrated to `sync.Map` — PERF-012**
-  - `pkg/registry/registry.go`: `serviceFactories` and `serviceDiscovered` are now `*sync.Map`. `Range` replaces ranged `for`; `Load` replaces direct map access in `GetService`, and `GetServiceFactories` now snapshots the map for the only remaining non-Sync lookup site.
-  - `pkg/infrastructure/registry.go`: `components` and `factories` in `ComponentRegistry` are now `sync.Map`. `GetAll()` cold-cache path uses `Range` to copy without a read-lock; write-side initialisation through `Initialize` uses `Store`. The dedicated `componentsMu`/`factoriesMu` read-lock overhead is eliminated for the hot `/health` read path.
+- **`ComponentRegistry` migrated from `sync.Map` to `map[string]…` + RWMutex — PERF-012**
+  - `pkg/infrastructure/registry.go`: `components` and `factories` in `ComponentRegistry` are now `map[string]InfrastructureComponent` / `map[string]ComponentFactory` guarded by `componentsMu` (`sync.RWMutex`) and `factoriesMu` (`sync.Mutex`). `sync.Map`'s per-call interface boxing and type assertions have been removed from every `Get()` and `GetAll()` hot read.
+  - The nested `cachedComponents sync.Map` cold-cache path has been replaced with a plain `cachedSnapshot map` guarded by `cacheMu`. No more double-`sync.Map` indirection.
 
 - **Kafka `Consume` inner-loop 500 ms ticker drain — PERF-013**
   - `pkg/infrastructure/kafka.go`: the rebalance loop in `Consume` now selects on a `time.Ticker(500ms)` between `consumerGroup.Consume` calls. On context cancellation the ticker is stopped immediately; otherwise the goroutine yields between rebalance cycles, allowing Go's scheduler to pre-empt it.
@@ -126,3 +126,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Phone / username regexes pre-compiled — PERF-016**
   - `pkg/request/request.go`: `phoneRegex` and `userRegex` are `regexp.MustCompile` package-level vars compiled once at `init()`. `validatePhone` and `validateUsername` call `.MatchString()` on the compiled objects, eliminating per-request `regexp.MatchString` recompilation.
+
+#### Fixes applied — session 2026-05-19 (second pass)
+
+- **`cacheTTL` bumped 500 ms → 2 s + `GetAll()` fast path — PERF-017**
+  - `pkg/registry/dependencies.go`: `cacheTTL` set to `2 * time.Second`, reducing the `/health/dependencies` map-copy frequency by 4×.
+  - `pkg/infrastructure/registry.go`: same `cacheTTL` bump and `GetAll()` rewritten so the hot fast path returns the cached pointer directly without touching the component map or re-acquiring `cacheMu` when already within TTL window.
+
+- **`ComponentRegistry` `sync.Map` → map + RWMutex — PERF-018**
+  - `pkg/infrastructure/registry.go`: Replaced `sync.Map` for both `components` and `factories` with plain `map` guarded by `componentsMu sync.RWMutex` and `factoriesMu sync.Mutex`. Eliminates per-read interface boxing and type assertion (`.(InfrastructureComponent)`) from every `Get()` and `GetAll()` call on the hot `/health` path.
+  - `cachedComponents sync.Map` (a second `sync.Map` nested inside the first) removed entirely; replaced by a plain `cachedSnapshot map[string]InfrastructureComponent` pointer guarded only by `cacheMu`.
+
+- **`WaitWithTimeout` timer-FD leak fixed — PERF-019**
+  - `pkg/infrastructure/async.go`: `time.After(timeout)` replaced by `timer := time.NewTimer(timeout)` + `defer timer.Stop()` in `AsyncResult.WaitWithTimeout`. Prevents one unreaped `time.Timer` (and its internal goroutine in the time-heap) per timed-out call, which otherwise accumulates linearly under sustained contention.
+
+- **Config defaults hardened — PERF-020**
+  - `config/config.go`: `swagger.enabled` default changed from `true` → `false`; Swagger spec files and route registration no longer allocated unless explicitly opted in.
+  - `config/config.go`: new `app.debug: false` default; zerolog debug-level structured event tree no longer allocated in production unless debug is on.
+  - `scripts/build/build.go` and `Dockerfile`: both build paths now pass `-ldflags="-s -w -buildid=" -trimpath`, stripping DWARF symbols, strings table, and binary build-ID for a ~2–4 MB binary size reduction on the final stage.

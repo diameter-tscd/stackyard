@@ -20,7 +20,7 @@ type Dependencies struct {
 func NewDependencies() *Dependencies {
 	return &Dependencies{
 		components: make(map[string]interface{}),
-		cacheTTL:   500 * time.Millisecond,
+		cacheTTL:   2 * time.Second, // reduced copy frequency 4x from 500ms default
 	}
 }
 

@@ -35,12 +35,17 @@ func (r *AsyncResult[T]) Wait() (T, error) {
 	return r.Value, r.Error
 }
 
-// WaitWithTimeout waits for the operation with a timeout
+// WaitWithTimeout waits for the operation with a timeout.
+// Uses time.NewTimer so the underlying timer resource is always reclaimed
+// via defer timer.Stop(), preventing a goroutine + FD leak per call.
 func (r *AsyncResult[T]) WaitWithTimeout(timeout time.Duration) (T, error) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
 	select {
 	case <-r.Done:
 		return r.Value, r.Error
-	case <-time.After(timeout):
+	case <-timer.C:
 		var zero T
 		return zero, context.DeadlineExceeded
 	}
