@@ -45,7 +45,7 @@ type Plugin interface {
 }
 
 // Runtime is the extension point for adding new plugin execution engines.
-// Each Runtime handles a specific entrypoint prefix ("ts:", "wasm:", etc.)
+// Each Runtime handles a specific entrypoint prefix ("ts:", "ext:", etc.)
 // and knows how to create Plugin instances from metadata + filesystem.
 type Runtime interface {
 	Prefix() string
