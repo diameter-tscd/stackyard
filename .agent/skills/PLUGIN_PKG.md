@@ -2,7 +2,7 @@
 
 ## Overview
 
-The plugin system allows dynamically loaded, sandboxed extensions embedded in the binary. Plugins can be pure Go types, TypeScript scripts (transpiled via **esbuild** and executed via **goja** at runtime), or **external-language** plugins (Python, etc. running as subprocesses via **gRPC**). Built-in plugins live under `builtin/` and are embedded via `//go:embed`. Runtime overrides are stored in `store/plugins/` on disk with a CopyOnWriteFs overlay.
+The plugin system allows dynamically loaded, sandboxed extensions embedded in the binary. Plugins can be pure Go types, TypeScript scripts (transpiled via **esbuild** and executed via **goja**), **Lua scripts** (executed via **gopher-lua** in-process), or **external-language** plugins (Python, etc. running as subprocesses via **gRPC**). Built-in plugins live under `builtin/` and are embedded via `//go:embed`. Runtime overrides are stored in `store/plugins/` on disk with a CopyOnWriteFs overlay.
 
 ### Files at a glance
 
@@ -17,6 +17,7 @@ The plugin system allows dynamically loaded, sandboxed extensions embedded in th
 | `runtime_registry.go` | `Runtime` registry — prefix-based lookup for plugin execution engines |
 | `tsplugin.go` | `TSScriptPlugin` + `tsRuntime` — TS-based plugin implementing `Runtime` for `ts:` prefix |
 | `external_runtime.go` | `ExternalPlugin` + `externalRuntime` — gRPC-based runtime for `ext:` prefix (Python, etc.) |
+| `luaplugin.go` | `LuaScriptPlugin` + `luaRuntime` — gopher-lua based runtime for `lua:` prefix |
 | `bridge.go` | `PluginBridge` — `InfrastructureComponent` so services/infra can call plugins |
 | `init.go` | `Init()` — entry point: config loading, builtin scanning, instantiation, route wiring |
 | `gin.go` | 7 Gin REST handlers for plugin management |
@@ -35,7 +36,7 @@ type Plugin interface {
 }
 ```
 
-`PluginMeta` is the manifest struct loaded from `plugin.yaml`. Fields: `Name`, `Version`, `Description`, `Author`, `DependsOn`, `Entrypoint` (`"go:FuncName"`, `"ts:path/to/script.ts"`, or `"ext:path/to/script.py"`), `Limits`.
+`PluginMeta` is the manifest struct loaded from `plugin.yaml`. Fields: `Name`, `Version`, `Description`, `Author`, `DependsOn`, `Entrypoint` (`"go:FuncName"`, `"ts:path/to/script.ts"`, `"lua:path/to/script.lua"`, or `"ext:path/to/script.py"`), `Limits`.
 
 `Context` carries per-execution state: `ID`, `Logger`, `Registry` (infrastructure `ComponentRegistry`), `Cancel` func, and effective `Limits`.
 
@@ -65,6 +66,71 @@ $done    → callback({ success, data, error })
 ```
 
 Reference types at `pkg/plugin/sdk/plugin.d.ts`. Drop this file in your IDE for autocompletion.
+
+---
+
+## Lua Script Plugin (`luaplugin.go`)
+
+When `entrypoint` starts with `lua:`, the system creates a `LuaScriptPlugin` that:
+1. Reads the `.lua` file from the plugin's afero filesystem
+2. Creates a fresh **gopher-lua** VM (pure Go, no CGo)
+3. Injects safe globals into the Lua environment
+4. Calls `handle(args)` and captures the result via `done()`
+
+Like TypeScript plugins, Lua plugins run **in-process** with direct access to the infrastructure registry. No subprocess or gRPC overhead.
+
+No Go code needed for the plugin — just a `plugin.yaml` manifest and `.lua` files in `scripts/`.
+
+Entrypoints: `"lua:scripts/handler.lua"` — the `luaRuntime` (registered in `luaplugin.go`) strips the `lua:` prefix and creates a `LuaScriptPlugin`.
+
+### Sandboxed environment
+
+Lua plugins run in a restricted environment. Only safe libraries are loaded:
+
+| Library | Functions |
+|---------|-----------|
+| `base` | `print`, `type`, `tostring`, `tonumber`, `ipairs`, `pairs`, `pcall`, `error`, `select`, etc. |
+| `table` | `table.insert`, `table.remove`, `table.sort`, `table.concat`, etc. |
+| `string` | `string.len`, `string.sub`, `string.gsub`, `string.match`, `string.upper`, `string.lower`, `string.format`, etc. |
+| `math` | `math.abs`, `math.floor`, `math.ceil`, `math.min`, `math.max`, `math.sqrt`, `math.sin`, `math.random`, etc. |
+
+**Excluded** (for security): `io`, `os` (except `os.time` which is in base), `debug`, `loadfile`, `dofile`, `require` with file paths.
+
+### Injected globals available in Lua
+
+```
+args         → table    (user-supplied execution arguments)
+logger       → table    { info(msg), warn(msg), error(msg), debug(msg) }
+limits       → table    { max_timeout_ms, max_memory_bytes }
+infra        → table    { get(name) → any }  (access to infrastructure components)
+done         → function ({ success, data, error })  (callback to return results)
+plugin_name  → string   (plugin name from manifest)
+```
+
+### Example Lua plugin
+
+```lua
+-- handler.lua
+function handle(args)
+    local name = args["name"] or "world"
+
+    logger:info("Processing request for " .. name)
+
+    local result = {
+        message = "Hello from Lua, " .. name .. "!",
+        plugin_name = plugin_name,
+        limits = limits
+    }
+
+    done({ success = true, data = result })
+end
+```
+
+### Execution model
+
+- **Fresh VM per call**: A new `lua.LState` is created for every `Execute()` call. No Lua state persists between executions.
+- **Timeout + OOM**: The `PluginSandbox.ExecuteWithGuard` wraps the entire Lua execution, providing context-based timeout and RSS memory monitoring comparable to TypeScript plugins.
+- **Error handling**: Lua errors in `handle()` are caught via `pcall` and returned as `{success: false, error: "..."}`. Panics in injected Go functions are recovered by the sandbox.
 
 ---
 
@@ -500,6 +566,126 @@ Derivation types: `delta` (sequential differences), `pct_change` (percent change
 
 ---
 
+## Built-in Lua Plugins
+
+Two Lua plugins ship as built-ins. Lua plugins run in-process (no subprocess) with sandboxed gopher-lua VMs.
+
+### `lua_demo` — Simple greeting plugin
+
+The minimal Lua plugin — demonstrates the basic `handle()` + `done()` pattern:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/plugins/lua_demo/execute \
+  -H 'Content-Type: application/json' \
+  -d '{"args": {"name": "Lua"}}' | jq
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Hello from Lua, Lua!",
+    "plugin_name": "lua_demo",
+    "name_length": 3
+  }
+}
+```
+
+### `lua_transformer` — Multi-mode data transformer
+
+Modes: `map` (default), `filter`, `sort`, `flatten`, `format`
+
+**Map mode** — transform fields with string/numeric operations:
+```bash
+curl -s -X POST http://localhost:8080/api/v1/plugins/lua_transformer/execute \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "args": {
+      "mode": "map",
+      "data": {"name": "  Alice  ", "score": 95.678},
+      "mappings": [
+        {"from": "name", "to": "name", "fn": "trim"},
+        {"from": "name", "to": "upper_name", "fn": "upper"},
+        {"from": "score", "to": "rounded_score", "fn": "round", "places": 1},
+        {"from": "name", "to": "greeting", "fn": "prefix", "value": "Hello, "}
+      ]
+    }
+  }' | jq
+```
+
+**Filter mode** — filter records by field conditions:
+```bash
+curl -s -X POST http://localhost:8080/api/v1/plugins/lua_transformer/execute \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "args": {
+      "mode": "filter",
+      "records": [
+        {"name": "Alice", "age": 30, "active": true},
+        {"name": "Bob", "age": 25, "active": false},
+        {"name": "Charlie", "age": 35, "active": true}
+      ],
+      "conditions": [
+        {"field": "age", "op": "gte", "value": 30},
+        {"field": "active", "op": "eq", "value": true}
+      ],
+      "logic": "and"
+    }
+  }' | jq
+```
+
+**Sort mode** — multi-field sorting:
+```bash
+curl -s -X POST http://localhost:8080/api/v1/plugins/lua_transformer/execute \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "args": {
+      "mode": "sort",
+      "records": [
+        {"name": "Charlie", "age": 35},
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 30}
+      ],
+      "sort_by": ["age", "name"],
+      "order": "asc"
+    }
+  }' | jq
+```
+
+**Flatten mode** — convert nested tables to dot-notation keys:
+```bash
+curl -s -X POST http://localhost:8080/api/v1/plugins/lua_transformer/execute \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "args": {
+      "mode": "flatten",
+      "data": {"user": {"name": "Alice", "address": {"city": "NYC", "zip": "10001"}}}
+    }
+  }' | jq
+```
+
+**Format mode** — format field values with pattern templates:
+```bash
+curl -s -X POST http://localhost:8080/api/v1/plugins/lua_transformer/execute \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "args": {
+      "mode": "format",
+      "data": {"username": "alice", "domain": "example.com"},
+      "pattern": "{lower}@{domain}",
+      "fields": ["username"]
+    }
+  }' | jq
+```
+
+Transform functions: `copy`, `upper`, `lower`, `trim`, `prefix`, `suffix`, `round`, `abs`, `tostring`, `tonumber`.
+
+Filter operators: `exists`, `not_exists`, `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `prefix`.
+
+Filter logic: `and`, `or`, `not`.
+
+---
+
 ## Runtime Registry (`runtime_registry.go`)
 
 The `Runtime` interface is the extension point for adding new plugin execution engines:
@@ -514,10 +700,12 @@ type Runtime interface {
 Runtimes self-register via `init()`:
 
 ```go
-func init() { RegisterRuntime(&externalRuntime{}) }
+func init() { RegisterRuntime(&luaRuntime{}) }
 ```
 
-`instantiatePlugin()` in `init.go` now delegates to `GetRuntimeForEntrypoint(entrypoint)` instead of hardcoding TS logic. If no runtime matches, it falls back to the Go factory pattern.
+`instantiatePlugin()` in `init.go` delegates to `GetRuntimeForEntrypoint(entrypoint)` which iterates all registered runtimes and returns the first match. If no runtime matches, it falls back to the Go factory pattern.
+
+Registered runtimes (and their prefixes): `tsRuntime` (`ts:`), `luaRuntime` (`lua:`), `externalRuntime` (`ext:`).
 
 ---
 
@@ -928,22 +1116,45 @@ Viper keys: `plugins.enabled`, `plugins.default_limits.max_timeout_ms`, `plugins
 
 ## Adding a New Plugin
 
-### TypeScript plugin (recommended for dynamic logic)
+### TypeScript plugin (recommended for complex dynamic logic)
 
 1. Create `pkg/plugin/builtin/{name}/plugin.yaml`:
-   ```yaml
-   name: myplugin
-   version: 1.0.0
-   description: My plugin
-   entrypoint: "ts:scripts/handler.ts"
-   limits:
-     max_timeout_ms: 5000
-     max_memory_bytes: 26214400
-   ```
+    ```yaml
+    name: myplugin
+    version: 1.0.0
+    description: My plugin
+    entrypoint: "ts:scripts/handler.ts"
+    limits:
+      max_timeout_ms: 5000
+      max_memory_bytes: 26214400
+    ```
 2. Create `pkg/plugin/builtin/{name}/scripts/handler.ts` using `$args`, `$logger`, `$done`.
 3. Optionally add `pkg/plugin/sdk/plugin.d.ts` to your project for IDE support.
 
-### External language plugin (Python, etc. via gRPC)
+### Lua plugin (lightweight, in-process scripting)
+
+1. Create `pkg/plugin/builtin/{name}/plugin.yaml`:
+    ```yaml
+    name: myluaplugin
+    version: 1.0.0
+    description: My Lua plugin
+    entrypoint: "lua:scripts/handler.lua"
+    limits:
+      max_timeout_ms: 10000
+      max_memory_bytes: 33554432
+    ```
+2. Create `pkg/plugin/builtin/{name}/scripts/handler.lua`:
+    ```lua
+    function handle(args)
+        local name = args["name"] or "world"
+        logger:info("Hello from " .. plugin_name)
+        done({ success = true, data = { message = "Hello, " .. name .. "!" } })
+    end
+    ```
+3. Use injected globals: `args`, `logger`, `limits`, `infra`, `done`, `plugin_name`
+4. No transpilation needed — Lua runs directly in the embedded gopher-lua VM
+
+### Python / external language plugin (gRPC subprocess)
 
 1. Create `pkg/plugin/builtin/{name}/plugin.yaml`:
     ```yaml
@@ -1028,3 +1239,11 @@ class StatefulPlugin(Plugin):
 - **Python stdlib only**: Python plugins can use any stdlib module. Third-party packages beyond `grpcio` and `protobuf` are not installed in the Docker image by default. Add them to the Dockerfile if needed.
 - **Python plugin errors**: Unhandled exceptions in `execute()` are caught by the SDK's `run()` method, logged, and returned as `{success: false, error: "ExceptionType: message", data: {traceback: "..."}}`. The host wraps unknown exceptions similarly.
 - **No infra access from Python**: Unlike TypeScript plugins (which have `$infra.get(name)`), Python plugins do not have direct access to Go-side infrastructure components. All required data must be passed via `args`. This is by design — Python is a separate process communicating over gRPC.
+- **Lua runtime**: `luaRuntime` uses the `lua:` prefix registered in `luaplugin.go` via `init()`. Entrypoints look like `"lua:scripts/handler.lua"`.
+- **Lua sandbox limits**: The `io`, `os`, and `debug` libraries are intentionally excluded from Lua plugins for security. Only `base`, `table`, `string`, `math`, and `coroutine` are loaded. `loadfile` and `dofile` are not available.
+- **Lua execution model**: A fresh `lua.LState` is created for every `Execute()` call. No Lua state persists between executions. The script's `handle()` function is called after the script loads.
+- **Lua `done()` callback**: Unlike TypeScript where `$done()` is the only output mechanism, Lua also supports returning values from `handle()`. Both patterns work. If `done()` is never called, the result defaults to `{success: true, data: nil}`.
+- **Lua infra access**: Like TypeScript, Lua plugins have `infra.get(name)` to access infrastructure components in-process. See the `lua_transformer` builtin for reference.
+- **Lua gopher-lua dependency**: No CGo or external Lua runtime required. The `github.com/yuin/gopher-lua` package provides the pure-Go Lua VM.
+- **Lua plugin lifecycle**: Lua plugins do not have `setup/teardown` hooks. Use the `handle()` function for all logic. For stateful operations, use a fresh approach per-call (gopher-lua does not support hot-reload).
+- **Lua table conversion**: Go `map[string]interface{}` and `[]interface{}` are automatically converted to Lua tables. Nested structures up to any depth are supported. Go `nil` becomes Lua `nil`. Non-serializable Go types are stringified.

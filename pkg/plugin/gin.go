@@ -55,8 +55,12 @@ func handleGet(c *gin.Context) {
 	}
 
 	typeInfo := "go"
-	if len(meta.Entrypoint) > 2 && meta.Entrypoint[:3] == "ts:" {
+	if len(meta.Entrypoint) > 3 && meta.Entrypoint[:4] == "lua:" {
+		typeInfo = "lua"
+	} else if len(meta.Entrypoint) > 2 && meta.Entrypoint[:3] == "ts:" {
 		typeInfo = "typescript"
+	} else if len(meta.Entrypoint) > 3 && meta.Entrypoint[:4] == "ext:" {
+		typeInfo = "external"
 	}
 
 	c.JSON(http.StatusOK, gin.H{

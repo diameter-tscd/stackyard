@@ -53,6 +53,7 @@ const (
 type BuildConfig struct {
 	UseGarble        bool
 	UseGoversioninfo bool
+	UseUPX           bool
 	Timeout          time.Duration
 	Verbose          bool
 }
@@ -249,6 +250,123 @@ func (ctx *BuildContext) askUserAboutGarble(logger *Logger) error {
 	}
 
 	return nil
+}
+
+// askUserAboutUPX asks user if they want UPX LZMA compression with timeout
+func (ctx *BuildContext) askUserAboutUPX(logger *Logger) error {
+	fmt.Printf("%sApply UPX LZMA compression to the binary? (y/N, timeout %ds): %s", B_YELLOW, int(ctx.Config.Timeout.Seconds()), RESET)
+
+	inputChan := make(chan string, 1)
+
+	go func() {
+		var choice string
+		fmt.Scanln(&choice)
+		inputChan <- choice
+	}()
+
+	select {
+	case choice := <-inputChan:
+		if strings.ToLower(choice) == "y" || strings.ToLower(choice) == "yes" {
+			ctx.Config.UseUPX = true
+			logger.Success("UPX compression enabled")
+		} else {
+			ctx.Config.UseUPX = false
+			logger.Info("Skipping UPX compression")
+		}
+	case <-time.After(ctx.Config.Timeout):
+		logger.Info("Timeout reached. Skipping UPX compression")
+		ctx.Config.UseUPX = false
+	}
+
+	return nil
+}
+
+// compressWithUPX compresses the built binary with upx --lzma.
+// If upx is not installed, installs it first.
+func (ctx *BuildContext) compressWithUPX(logger *Logger) error {
+	if !ctx.Config.UseUPX {
+		return nil
+	}
+
+	outputPath := filepath.Join(ctx.DistPath, APP_NAME)
+	if runtime.GOOS == "windows" {
+		outputPath += ".exe"
+	}
+
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		logger.Warn("Binary not found at %s, skipping UPX compression", outputPath)
+		return nil
+	}
+
+	// Check if upx is available, install if not
+	if err := exec.Command("upx", "--version").Run(); err != nil {
+		logger.Warn("upx not found. Installing...")
+		if err := installUPX(logger); err != nil {
+			logger.Warn("Failed to install upx: %v. Skipping compression.", err)
+			return nil
+		}
+		logger.Success("upx installed")
+	}
+
+	logger.Info("Compressing with upx --lzma...")
+
+	upxArgs := []string{"--lzma", "--best"}
+	if runtime.GOOS == "darwin" {
+		upxArgs = append(upxArgs, "--force-macos")
+	}
+	upxArgs = append(upxArgs, outputPath)
+	cmd := exec.Command("upx", upxArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		logger.Warn("UPX compression failed: %v. Build continues without compression.", err)
+		return nil
+	}
+
+	// Get compressed size
+	info, err := os.Stat(outputPath)
+	if err == nil {
+		logger.Success("UPX compression complete: %d bytes", info.Size())
+	} else {
+		logger.Success("UPX compression complete")
+	}
+
+	return nil
+}
+
+// installUPX installs upx using the system package manager
+func installUPX(logger *Logger) error {
+	switch runtime.GOOS {
+	case "darwin":
+		cmd := exec.Command("brew", "install", "upx")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	case "linux":
+		// Try apt, then apk
+		if err := exec.Command("apt-get", "--version").Run(); err == nil {
+			cmd := exec.Command("apt-get", "update", "-qq")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("apt-get update failed: %w", err)
+			}
+			cmd = exec.Command("apt-get", "install", "-y", "-qq", "upx")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
+		}
+		if err := exec.Command("apk", "--version").Run(); err == nil {
+			cmd := exec.Command("apk", "add", "upx")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
+		}
+		return fmt.Errorf("unsupported package manager on linux (tried apt-get, apk)")
+	default:
+		return fmt.Errorf("unsupported OS for automatic upx installation: %s", runtime.GOOS)
+	}
 }
 
 // stopRunningProcess stops any running application instances
@@ -733,6 +851,8 @@ func main() {
 		{"Creating backup", ctx.createBackup},
 		{"Archiving backup", ctx.archiveBackup},
 		{"Building application", ctx.buildApplication},
+		{"Asking user about UPX compression", ctx.askUserAboutUPX},
+		{"Compressing with UPX", ctx.compressWithUPX},
 		{"Copying assets", ctx.copyAssets},
 	}
 
