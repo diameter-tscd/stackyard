@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"time"
+
 	"stackyrd/pkg/logger"
 )
 
@@ -9,7 +11,7 @@ type PluginSummary struct {
 	Version     string `json:"version"`
 	Description string `json:"description"`
 	Entrypoint  string `json:"entrypoint"`
-	Status      string `json:"status"` // "loaded" | "registered"
+	Status      string `json:"status"`
 }
 
 type PluginBridge struct {
@@ -30,6 +32,7 @@ func (b *PluginBridge) Close() error {
 }
 
 func (b *PluginBridge) GetStatus() map[string]interface{} {
+	metrics := CollectMetrics(b.registry)
 	metas := b.registry.GetAllMetas()
 	plugins := b.registry.GetAll()
 
@@ -52,10 +55,15 @@ func (b *PluginBridge) GetStatus() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"total":      len(metas),
-		"loaded":     loaded,
-		"registered": len(metas) - loaded,
-		"plugins":    entries,
+		"total":          len(metas),
+		"loaded":         loaded,
+		"registered":     len(metas) - loaded,
+		"plugins":        entries,
+		"active_execs":   metrics.ActiveExecutions,
+		"goroutines":     metrics.GoroutineCount,
+		"memory_bytes":   metrics.MemoryUsageBytes,
+		"memory_limit":   metrics.MemoryLimitBytes,
+		"memory_percent": metrics.MemoryPercent,
 	}
 }
 
@@ -83,7 +91,17 @@ func (b *PluginBridge) Execute(name string, args map[string]interface{}) (*Resul
 		Limits:   meta.Limits,
 	}
 
-	return p.Execute(ctx, args)
+	b.registry.AcquireExecution()
+	start := time.Now()
+	result, err := p.Execute(ctx, args)
+	elapsed := time.Since(start).Seconds() * 1000
+	b.registry.ReleaseExecution()
+
+	if err == nil {
+		b.registry.IncrementExecuteCount(name, elapsed)
+	}
+
+	return result, err
 }
 
 func (b *PluginBridge) ListPlugins() []PluginSummary {
@@ -108,8 +126,6 @@ func (b *PluginBridge) ListPlugins() []PluginSummary {
 	return result
 }
 
-// GetGlobalPluginBridge returns a bridge wrapping the global PluginRegistry.
-// Returns nil if the plugin system has not been initialized yet.
 func GetGlobalPluginBridge() *PluginBridge {
 	if globalLogger == nil {
 		return nil

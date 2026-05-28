@@ -3,6 +3,7 @@ package plugin
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/spf13/afero"
 )
@@ -10,11 +11,13 @@ import (
 type PluginFactory func(meta PluginMeta, fs afero.Fs) (Plugin, error)
 
 type PluginRegistry struct {
-	plugins   map[string]Plugin
-	factories map[string]PluginFactory
-	metas     map[string]PluginMeta
-	fsystems  map[string]afero.Fs
-	mu        sync.RWMutex
+	plugins          map[string]Plugin
+	factories        map[string]PluginFactory
+	metas            map[string]PluginMeta
+	fsystems         map[string]afero.Fs
+	stats            map[string]*PluginStats
+	activeExecutions atomic.Int32
+	mu               sync.RWMutex
 }
 
 var (
@@ -29,6 +32,7 @@ func GetGlobalPluginRegistry() *PluginRegistry {
 			factories: make(map[string]PluginFactory),
 			metas:     make(map[string]PluginMeta),
 			fsystems:  make(map[string]afero.Fs),
+			stats:     make(map[string]*PluginStats),
 		}
 	})
 	return globalRegistry
@@ -110,6 +114,7 @@ func (r *PluginRegistry) Remove(name string) {
 	delete(r.factories, name)
 	delete(r.metas, name)
 	delete(r.fsystems, name)
+	delete(r.stats, name)
 }
 
 func (r *PluginRegistry) HasFactory(name string) bool {
@@ -127,4 +132,55 @@ func (r *PluginRegistry) LookupFactory(name string, meta PluginMeta, fs afero.Fs
 		return nil, fmt.Errorf("no factory registered for plugin: %s", name)
 	}
 	return factory(meta, fs)
+}
+
+// ── Stats tracking ──────────────────────────────────────────────────
+
+func (r *PluginRegistry) SetStats(name string, s *PluginStats) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.stats[name] = s
+}
+
+func (r *PluginRegistry) GetStats(name string) (*PluginStats, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	s, ok := r.stats[name]
+	return s, ok
+}
+
+func (r *PluginRegistry) GetAllStats() map[string]*PluginStats {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make(map[string]*PluginStats, len(r.stats))
+	for k, v := range r.stats {
+		result[k] = v
+	}
+	return result
+}
+
+func (r *PluginRegistry) IncrementExecuteCount(name string, durationMs float64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if s, ok := r.stats[name]; ok {
+		s.ExecuteCount++
+		s.LastExecuteMs = durationMs
+		s.TotalExecuteMs += durationMs
+		_ = ok
+	}
+}
+
+// ActiveExecutions returns the number of plugin executions currently in flight.
+func (r *PluginRegistry) ActiveExecutions() int32 {
+	return r.activeExecutions.Load()
+}
+
+// AcquireExecution increments the active execution counter.
+func (r *PluginRegistry) AcquireExecution() {
+	r.activeExecutions.Add(1)
+}
+
+// ReleaseExecution decrements the active execution counter.
+func (r *PluginRegistry) ReleaseExecution() {
+	r.activeExecutions.Add(-1)
 }

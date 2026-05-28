@@ -121,3 +121,4 @@ plugins:
   default_limits:
     max_timeout_ms: 30000
     max_memory_bytes: 104857600
+  # allowlist: []

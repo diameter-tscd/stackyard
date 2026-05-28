@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"stackyrd/config"
 	"stackyrd/pkg/infrastructure"
@@ -22,12 +24,15 @@ var (
 	storeBase        string
 	globalLogger     *logger.Logger
 	globalInfraRegistry   *infrastructure.ComponentRegistry
+	pluginStartTime  time.Time
+	memoryHardLimit  int64
 )
 
 type PluginConfig struct {
 	Enabled       bool                  `mapstructure:"enabled"`
 	DefaultLimits ResourceLimits        `mapstructure:"default_limits"`
 	Overrides     map[string]PluginMeta `mapstructure:"overrides"`
+	Allowlist     []string              `mapstructure:"allowlist"`
 }
 
 func defaultPluginConfig() PluginConfig {
@@ -47,11 +52,14 @@ func Init(cfg *config.Config, l *logger.Logger, rg *gin.RouterGroup) error {
 
 	globalLogger = l
 	globalInfraRegistry = infrastructure.GetGlobalRegistry()
+	pluginStartTime = time.Now()
 
 	if !pCfg.Enabled {
 		l.Info("Plugin system disabled")
 		return nil
 	}
+
+	memoryHardLimit = pCfg.DefaultLimits.MaxMemoryBytes
 
 	storeBase = filepath.Join("store", "plugins")
 	if err := os.MkdirAll(storeBase, 0755); err != nil {
@@ -98,6 +106,44 @@ func loadPluginConfig(pCfg *PluginConfig) {
 			pCfg.Overrides[name] = meta
 		}
 	}
+	if viper.IsSet("plugins.allowlist") {
+		list := viper.GetStringSlice("plugins.allowlist")
+		for _, name := range list {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				pCfg.Allowlist = append(pCfg.Allowlist, name)
+			}
+		}
+	}
+}
+
+func isAllowed(name string, allowlist []string) bool {
+	if len(allowlist) == 0 {
+		return true
+	}
+	for _, allowed := range allowlist {
+		if name == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+func computeEmbeddedFileSize(baseDir string) int64 {
+	var total int64
+	fs.WalkDir(builtinFS, baseDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !d.IsDir() {
+			info, err := d.Info()
+			if err == nil {
+				total += info.Size()
+			}
+		}
+		return nil
+	})
+	return total
 }
 
 func scanBuiltinPlugins(pCfg PluginConfig, l *logger.Logger) error {
@@ -108,6 +154,8 @@ func scanBuiltinPlugins(pCfg PluginConfig, l *logger.Logger) error {
 		l.Debug("No builtin plugins found", "error", err)
 		return nil
 	}
+
+	skipped := 0
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
@@ -131,6 +179,12 @@ func scanBuiltinPlugins(pCfg PluginConfig, l *logger.Logger) error {
 
 		if meta.Name == "" {
 			meta.Name = pluginName
+		}
+
+		if !isAllowed(meta.Name, pCfg.Allowlist) {
+			l.Debug("Plugin not in allowlist, skipping", "name", meta.Name)
+			skipped++
+			continue
 		}
 
 		if override, ok := pCfg.Overrides[meta.Name]; ok {
@@ -158,10 +212,32 @@ func scanBuiltinPlugins(pCfg PluginConfig, l *logger.Logger) error {
 
 		fsys := buildPluginFS(builtinFS, pluginPrefix, storeDir)
 
+		fileSize := computeEmbeddedFileSize(pluginPrefix)
+
+		pluginType := entrypointType(meta.Entrypoint)
+		stats := &PluginStats{
+			Name:             meta.Name,
+			Status:           "registered",
+			Type:             pluginType,
+			Entrypoint:       meta.Entrypoint,
+			EmbeddedFileSize: fileSize,
+		}
+		reg.SetStats(meta.Name, stats)
 		reg.SetMeta(meta.Name, meta)
 		reg.SetFilesystem(meta.Name, fsys)
 
-		l.Info("Registered builtin plugin", "name", meta.Name, "version", meta.Version)
+		l.Info("Registered builtin plugin",
+			"name", meta.Name,
+			"version", meta.Version,
+			"type", pluginType,
+			"file_size", fileSize,
+		)
+	}
+
+	if len(pCfg.Allowlist) > 0 {
+		l.Info("Plugin scanning complete", "registered", len(entries)-skipped-1, "skipped", skipped, "allowlist", strings.Join(pCfg.Allowlist, ","))
+	} else {
+		l.Info("Plugin scanning complete", "registered", len(entries)-skipped-1)
 	}
 
 	return nil
@@ -174,19 +250,40 @@ func initPluginsFromRegistry(pCfg PluginConfig, l *logger.Logger) {
 		meta, _ := reg.GetMeta(name)
 		fsys, _ := reg.GetFilesystem(name)
 
+		start := time.Now()
 		p, err := instantiatePlugin(name, meta, fsys)
+		loadTime := time.Since(start).Seconds() * 1000
+
 		if err != nil {
 			l.Error("Failed to instantiate plugin", err, "name", name)
+			if s, ok := reg.GetStats(name); ok {
+				s.Status = "error"
+				s.LoadTimeMs = loadTime
+			}
 			continue
 		}
 
 		if err := p.Validate(); err != nil {
 			l.Error("Plugin validation failed", err, "name", name)
+			if s, ok := reg.GetStats(name); ok {
+				s.Status = "error"
+				s.LoadTimeMs = loadTime
+			}
 			continue
 		}
 
 		reg.Store(name, p)
-		l.Info("Plugin loaded", "name", name, "entrypoint", meta.Entrypoint)
+
+		if s, ok := reg.GetStats(name); ok {
+			s.Status = "loaded"
+			s.LoadTimeMs = loadTime
+		}
+
+		l.Info("Plugin loaded",
+			"name", name,
+			"entrypoint", meta.Entrypoint,
+			"load_time_ms", fmt.Sprintf("%.2f", loadTime),
+		)
 	}
 }
 

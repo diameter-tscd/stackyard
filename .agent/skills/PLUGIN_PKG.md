@@ -8,8 +8,8 @@ The plugin system allows dynamically loaded, sandboxed extensions embedded in th
 
 | File | Role |
 |------|------|
-| `plugin.go` | `Plugin` interface, `Runtime` interface, `PluginMeta`, `ResourceLimits`, `Context`, `Result` |
-| `registry.go` | `PluginRegistry` singleton — factory/meta/filesystem maps |
+| `plugin.go` | `Plugin` interface, `Runtime` interface, `PluginMeta`, `ResourceLimits`, `Context`, `Result`, `PluginStats`, `PluginManagerMetrics`, `CollectMetrics()`, `entrypointType()` |
+| `registry.go` | `PluginRegistry` singleton — factory/meta/filesystem/stats maps, `ActiveExecutions` atomic counter |
 | `store.go` | `embed.FS` → `afero.Fs` adapter, `buildPluginFS()`, `ensureStoreDir()` |
 | `sandbox.go` | Timeout enforcement, RSS memory monitor via gopsutil, panic recovery |
 | `transpiler.go` | `TSCache` — SHA256 cache + esbuild TS→JS transpilation |
@@ -20,7 +20,7 @@ The plugin system allows dynamically loaded, sandboxed extensions embedded in th
 | `luaplugin.go` | `LuaScriptPlugin` + `luaRuntime` — gopher-lua based runtime for `lua:` prefix |
 | `bridge.go` | `PluginBridge` — `InfrastructureComponent` so services/infra can call plugins |
 | `init.go` | `Init()` — entry point: config loading, builtin scanning, instantiation, route wiring |
-| `gin.go` | 7 Gin REST handlers for plugin management |
+| `gin.go` | 8 Gin REST handlers for plugin management (+ `GET /manager/status`) |
 | `embed.go` | `//go:embed builtin` directive |
 
 ---
@@ -41,6 +41,52 @@ type Plugin interface {
 `Context` carries per-execution state: `ID`, `Logger`, `Registry` (infrastructure `ComponentRegistry`), `Cancel` func, and effective `Limits`.
 
 `Result` is `{Success bool, Data interface{}, Error string}`.
+
+### PluginStats — Per-plugin runtime statistics
+
+```go
+type PluginStats struct {
+    Name              string   // plugin name
+    Status            string   // "loaded" | "registered" | "error"
+    Type              string   // "typescript" | "lua" | "external" | "go"
+    Entrypoint        string   // entrypoint string
+    LoadTimeMs        float64  // ms to instantiate + validate at boot
+    EmbeddedFileSize  int64    // total bytes of all files in builtin/{name}/
+    ExecuteCount      int64    // total successful executions
+    LastExecuteMs     float64  // ms of the most recent execution
+    TotalExecuteMs    float64  // cumulative execution ms
+    MemoryUsageBytes  int64    // last known memory (process-wide snapshot)
+}
+```
+
+### PluginManagerMetrics — Aggregate manager snapshot
+
+```go
+type PluginManagerMetrics struct {
+    TotalPlugins     int           // registered plugin metas
+    LoadedPlugins    int           // successfully loaded + validated
+    TotalExecutions  int64         // sum of all execute counts
+    ActiveExecutions int32         // currently in-flight (atomic counter)
+    GoroutineCount   int           // runtime.NumGoroutine()
+    MemoryUsageBytes uint64        // runtime.ReadMemStats.Alloc
+    MemoryLimitBytes int64         // from config plugins.default_limits.max_memory_bytes
+    MemoryPercent    float64       // usage / limit * 100
+    UptimeSeconds    float64       // since plugin.Init()
+    Plugins          []PluginStats // per-plugin snapshot
+}
+```
+
+`CollectMetrics(reg *PluginRegistry)` gathers a full snapshot at call time by combining `runtime.ReadMemStats`, `runtime.NumGoroutine()`, the registry's `GetAllMetas()`, `GetAllStats()`, and the package-level `pluginStartTime` / `memoryHardLimit` vars.
+
+Note: Memory tracking reports the **total Go heap** (process-wide), not per-plugin isolation. Goroutine count is also process-wide. The `ActiveExecutions` counter is the only plugin-specific concurrency metric.
+
+### entrypointType — Entrypoint prefix classifier
+
+```go
+func entrypointType(entrypoint string) string
+```
+
+Returns `"lua"` for `lua:`, `"typescript"` for `ts:`, `"external"` for `ext:`, and `"go"` for all other entrypoints (including bare Go factory patterns).
 
 ---
 
@@ -725,6 +771,41 @@ The factory receives the parsed `PluginMeta` and a per-plugin afero `Fs` (embed 
 
 ---
 
+## PluginBridge (`bridge.go`)
+
+`PluginBridge` wraps `PluginRegistry` and implements `InfrastructureComponent`, making it discoverable by both infrastructure components and services. It provides the primary entry point for executing plugins from Go code.
+
+### Execution tracking
+
+`Execute()` wraps every call with:
+- `AcquireExecution()` / `ReleaseExecution()` — atomic active-execution counter (`ActiveExecutions`)
+- `time.Now() / time.Since()` — per-call execution duration
+- `IncrementExecuteCount(name, elapsedMs)` — updates per-plugin `ExecuteCount`, `LastExecuteMs`, `TotalExecuteMs`
+
+### GetStatus metrics
+
+`GetStatus()` enriches its response with manager-level metrics from `CollectMetrics()`:
+
+```go
+func (b *PluginBridge) GetStatus() map[string]interface{} {
+    // Returns: total, loaded, registered, plugins, active_execs,
+    //          goroutines, memory_bytes, memory_limit, memory_percent
+}
+```
+
+### Convenience accessor
+
+```go
+bridge := plugin.GetGlobalPluginBridge()
+if bridge != nil && bridge.HasPlugin("inspector") {
+    result, err := bridge.Execute("inspector", map[string]interface{}{"mode": "ping"})
+}
+```
+
+`GetGlobalPluginBridge()` returns nil if the plugin system has not been initialized.
+
+---
+
 ## Init Flow
 
 Called from `internal/server/server.go:105`:
@@ -866,7 +947,7 @@ flowchart LR
 Registered at `Init()` on `/api/v1/plugins`.  
 All examples target the built-in `inspector` plugin on `localhost:8080`.
 
-### `GET /api/v1/plugins` — List all plugins
+### `GET /api/v1/plugins` — List all plugins (with stats and manager metrics)
 
 ```bash
 curl -s http://localhost:8080/api/v1/plugins | jq
@@ -879,15 +960,39 @@ curl -s http://localhost:8080/api/v1/plugins | jq
       "name": "inspector",
       "version": "1.0.0",
       "description": "Queries all active infrastructure components ...",
-      "status": "loaded"
+      "status": "loaded",
+      "type": "typescript",
+      "execute_count": 12,
+      "load_time_ms": 2.34,
+      "file_size": 4096,
+      "last_execution_ms": 8.12
+    },
+    {
+      "name": "lua_transformer",
+      "version": "1.0.0",
+      "description": "Multi-mode Lua data transformer",
+      "status": "loaded",
+      "type": "lua",
+      "execute_count": 5,
+      "load_time_ms": 0.87,
+      "file_size": 2048,
+      "last_execution_ms": 3.45
     }
-  ]
+  ],
+  "total": 8,
+  "loaded": 8,
+  "active_execs": 0,
+  "goroutines": 18,
+  "memory_bytes": 48234496,
+  "memory_limit": 104857600,
+  "memory_percent": 46.01,
+  "uptime_seconds": 1234.56
 }
 ```
 
 ---
 
-### `GET /api/v1/plugins/:name` — Plugin detail
+### `GET /api/v1/plugins/:name` — Plugin detail (with per-plugin stats)
 
 ```bash
 curl -s http://localhost:8080/api/v1/plugins/inspector | jq
@@ -906,13 +1011,56 @@ curl -s http://localhost:8080/api/v1/plugins/inspector | jq
     "max_timeout_ms": 15000,
     "max_memory_bytes": 33554432
   },
-  "status": "loaded"
+  "status": "loaded",
+  "load_time_ms": 2.34,
+  "embedded_file_size": 4096,
+  "execute_count": 12,
+  "last_execution_ms": 8.12,
+  "total_execution_ms": 97.44
 }
 ```
 
 ---
 
+### `GET /api/v1/plugins/manager/status` — Manager-level metrics snapshot
+
+```bash
+curl -s http://localhost:8080/api/v1/plugins/manager/status | jq
+```
+
+```json
+{
+  "total_plugins": 8,
+  "loaded_plugins": 8,
+  "total_executions": 42,
+  "active_executions": 0,
+  "goroutine_count": 18,
+  "memory_usage_bytes": 48234496,
+  "memory_limit_bytes": 104857600,
+  "memory_percent": 46.01,
+  "uptime_seconds": 1234.56,
+  "plugins": [
+    {
+      "name": "inspector",
+      "status": "loaded",
+      "type": "typescript",
+      "entrypoint": "ts:scripts/handler.ts",
+      "load_time_ms": 2.34,
+      "embedded_file_size": 4096,
+      "execute_count": 12,
+      "last_execution_ms": 8.12,
+      "total_execution_ms": 97.44,
+      "memory_usage_bytes": 0
+    }
+  ]
+}
+```
+
+This endpoint returns a raw `PluginManagerMetrics` struct — the same data embedded in `GET /api/v1/plugins` but without the `plugins` array being wrapped in a `"plugins"` key. Useful for Prometheus scraping or health dashboards.
+
 ### `POST /api/v1/plugins/:name/execute` — Execute a plugin
+
+Executions are automatically timed via `time.Now()/time.Since()` and recorded in per-plugin `PluginStats` (execute count, last execution ms, total execution ms). The active-executions atomic counter is incremented before and decremented after each call.
 
 **Aggregator plugin** — full-featured demo with 4 modes:
 
@@ -1105,12 +1253,21 @@ plugins:
   default_limits:
     max_timeout_ms: 30000
     max_memory_bytes: 104857600         # 100 MB
+  allowlist: []                         # empty = all plugins allowed
   overrides:
     example:
       max_timeout_ms: 10000
 ```
 
-Viper keys: `plugins.enabled`, `plugins.default_limits.max_timeout_ms`, `plugins.overrides.{name}.max_timeout_ms`. Overrides are applied per-plugin on top of defaults. The hard cap acts as an absolute maximum — if a plugin.yaml or override sets limits higher, they are clamped.
+Viper keys: `plugins.enabled`, `plugins.default_limits.max_timeout_ms`, `plugins.overrides.{name}.max_timeout_ms`, `plugins.allowlist`.
+
+**Allowlist**: When non-empty, only plugin names in this list are registered at boot. Plugins not in the list are silently skipped (logged at `DEBUG` level). An empty list (or omitted) allows all built-in plugins. Example:
+```yaml
+plugins:
+  allowlist: ["inspector", "lua_demo", "lua_transformer"]
+```
+
+**Overrides** are applied per-plugin on top of defaults. The hard cap acts as an absolute maximum — if a plugin.yaml or override sets limits higher, they are clamped.
 
 ---
 
@@ -1225,6 +1382,9 @@ class StatefulPlugin(Plugin):
 - **External plugin subprocess lifecycle**: The Python host process is started on the first `Execute()` call and killed on `Close()`. Plugin crash causes the host to restart on the next call.
 - **Global loggers/registry**: `plugin.Init()` stores `globalLogger` and `globalInfraRegistry` as package vars accessed by Gin handlers. These are set at boot and must not be nil when handlers fire.
 - **Plugin order**: `plugin.Init()` runs *before* `AutoDiscoverServices` in `server.go`, so the `PluginBridge` is available in service `Dependencies` at construction time.
+- **Allowlist filtering**: If `plugins.allowlist` is set in config (non-empty), `scanBuiltinPlugins()` skips plugins whose names are not in the list. Skipped plugins are logged at `DEBUG` level and not registered.
+- **File size tracking**: During `scanBuiltinPlugins()`, `computeEmbeddedFileSize()` walks each plugin's `builtin/{name}/` tree and records total bytes in `PluginStats.EmbeddedFileSize`.
+- **Load time tracking**: During `initPluginsFromRegistry()`, each plugin's instantiation + validation time is measured and stored in `PluginStats.LoadTimeMs`.
 - **Infra readiness**: Infrastructure components are initialized asynchronously and may not be fully ready when a plugin's `Execute()` first runs — the plugin developer should handle this gracefully (the `inspector` plugin already does: it sets `available: false` for components that return nil).
 - **No plugin hot-reload yet**: `DELETE + re-registration` is manual via the API. A file watcher for the overlay directory is future work.
 - **Embed path**: The `//go:embed builtin` directive in `embed.go` embeds the entire `builtin/` directory tree. The `builtinFS` variable must use the `embed` package type and is set via `SetBuiltinFS()` in an `init()` function in the same file.

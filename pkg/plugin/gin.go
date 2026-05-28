@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -16,11 +17,20 @@ func RegisterManagementRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:name/scripts", handleListScripts)
 	rg.GET("/:name/scripts/:file", handleGetScript)
 	rg.DELETE("/:name", handleUnload)
+	rg.GET("/manager/status", handleManagerStatus)
+}
+
+func handleManagerStatus(c *gin.Context) {
+	reg := GetGlobalPluginRegistry()
+	metrics := CollectMetrics(reg)
+	c.JSON(http.StatusOK, metrics)
 }
 
 func handleList(c *gin.Context) {
 	reg := GetGlobalPluginRegistry()
 	metas := reg.GetAllMetas()
+	allStats := reg.GetAllStats()
+
 	result := make([]gin.H, 0, len(metas))
 	for name, meta := range metas {
 		_, loaded := reg.Get(name)
@@ -28,14 +38,39 @@ func handleList(c *gin.Context) {
 		if loaded {
 			status = "loaded"
 		}
-		result = append(result, gin.H{
+
+		entry := gin.H{
 			"name":        name,
 			"version":     meta.Version,
 			"description": meta.Description,
 			"status":      status,
-		})
+			"type":        entrypointType(meta.Entrypoint),
+		}
+
+		if s, ok := allStats[name]; ok {
+			entry["execute_count"] = s.ExecuteCount
+			entry["load_time_ms"] = s.LoadTimeMs
+			entry["file_size"] = s.EmbeddedFileSize
+			if s.LastExecuteMs > 0 {
+				entry["last_execution_ms"] = s.LastExecuteMs
+			}
+		}
+
+		result = append(result, entry)
 	}
-	c.JSON(http.StatusOK, gin.H{"plugins": result})
+
+	metrics := CollectMetrics(reg)
+	c.JSON(http.StatusOK, gin.H{
+		"plugins":         result,
+		"total":           metrics.TotalPlugins,
+		"loaded":          metrics.LoadedPlugins,
+		"active_execs":    metrics.ActiveExecutions,
+		"goroutines":      metrics.GoroutineCount,
+		"memory_bytes":    metrics.MemoryUsageBytes,
+		"memory_limit":    metrics.MemoryLimitBytes,
+		"memory_percent":  metrics.MemoryPercent,
+		"uptime_seconds":  metrics.UptimeSeconds,
+	})
 }
 
 func handleGet(c *gin.Context) {
@@ -54,29 +89,36 @@ func handleGet(c *gin.Context) {
 		status = "loaded"
 	}
 
-	typeInfo := "go"
-	if len(meta.Entrypoint) > 3 && meta.Entrypoint[:4] == "lua:" {
-		typeInfo = "lua"
-	} else if len(meta.Entrypoint) > 2 && meta.Entrypoint[:3] == "ts:" {
-		typeInfo = "typescript"
-	} else if len(meta.Entrypoint) > 3 && meta.Entrypoint[:4] == "ext:" {
-		typeInfo = "external"
-	}
+	stats, _ := reg.GetStats(name)
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"name":        name,
 		"version":     meta.Version,
 		"description": meta.Description,
 		"author":      meta.Author,
 		"entrypoint":  meta.Entrypoint,
-		"type":        typeInfo,
+		"type":        entrypointType(meta.Entrypoint),
 		"depends_on":  meta.DependsOn,
 		"limits": gin.H{
 			"max_timeout_ms":   meta.Limits.MaxTimeoutMs,
 			"max_memory_bytes": meta.Limits.MaxMemoryBytes,
 		},
 		"status": status,
-	})
+	}
+
+	if stats != nil {
+		response["load_time_ms"] = stats.LoadTimeMs
+		response["embedded_file_size"] = stats.EmbeddedFileSize
+		response["execute_count"] = stats.ExecuteCount
+		if stats.LastExecuteMs > 0 {
+			response["last_execution_ms"] = stats.LastExecuteMs
+		}
+		if stats.TotalExecuteMs > 0 {
+			response["total_execution_ms"] = stats.TotalExecuteMs
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 type executeRequest struct {
@@ -109,7 +151,16 @@ func handleExecute(c *gin.Context) {
 		Limits:   meta.Limits,
 	}
 
+	reg.AcquireExecution()
+	start := time.Now()
 	result, err := p.Execute(ctx, req.Args)
+	elapsed := time.Since(start).Seconds() * 1000
+	reg.ReleaseExecution()
+
+	if err == nil {
+		reg.IncrementExecuteCount(name, elapsed)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
