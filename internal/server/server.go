@@ -98,6 +98,21 @@ func (s *Server) Start() error {
 		}
 	}
 
+	s.logger.Info("Registering infrastructure component routes...")
+	for name, comp := range componentRegistry.GetAll() {
+		if rr, ok := comp.(infrastructure.RouteRegistrar); ok {
+			for _, rh := range rr.RouteHandlers() {
+				rg := s.gin.Group(rh.Path)
+				if rh.Mode == infrastructure.RouterCustom && len(rh.Handlers) > 0 {
+					rg.Use(rh.Handlers...)
+				}
+				rh.Handler(rg)
+				s.logger.Info("Mounted component routes",
+					"component", name, "path", rh.Path, "mode", rh.Mode)
+			}
+		}
+	}
+
 	s.logger.Info("Booting Services...")
 	serviceRegistry := registry.NewServiceRegistry(s.logger)
 	s.registerHealthEndpoints()
