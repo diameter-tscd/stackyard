@@ -31,7 +31,7 @@ FROM builder AS test
 RUN go test ./...
 
 # Production stage (Alpine - ~50MB, Python plugin support)
-FROM alpine:latest AS prod
+FROM alpine:3.23 AS prod
 
 # Install ca-certificates for HTTPS and Python 3 for external (Python) plugins
 RUN apk --no-cache add ca-certificates python3 py3-pip && \
@@ -103,7 +103,7 @@ CMD ["./stackyrd", "-env", "production"]
 # NOTE: Python/external (ext:) plugins are not supported in this stage
 # because distroless/static does not include a Python runtime.
 # TypeScript (ts:) and Go (go:) plugins work fine (compiled into binary).
-FROM gcr.io/distroless/static:latest AS prod-distroless
+FROM gcr.io/distroless/static:nonroot AS prod-distroless
 
 WORKDIR /
 
@@ -123,9 +123,6 @@ ENV APP_ENABLE_TUI=false
 
 # Expose ports for main API server
 EXPOSE 8080
-
-# Use non-root user (already set by distroless)
-USER nonroot:nonroot
 
 # Run the application
 CMD ["/stackyrd", "-env", "production"]

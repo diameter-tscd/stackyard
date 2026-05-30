@@ -808,6 +808,8 @@ func main() {
 	var (
 		timeoutSeconds = flag.Int("timeout", 10, "Timeout for user prompts in seconds")
 		verbose        = flag.Bool("verbose", false, "Enable verbose logging")
+		useGarble      = flag.Bool("garble", false, "Enable garble obfuscation (skips interactive prompt)")
+		useUPX         = flag.Bool("upx", false, "Enable UPX compression (skips interactive prompt)")
 	)
 	flag.Parse()
 
@@ -839,6 +841,16 @@ func main() {
 	_, cancel := context.WithCancel(context.Background())
 	setupSignalHandler(cancel)
 
+	// Apply flag overrides for non-interactive mode
+	if *useGarble {
+		ctx.Config.UseGarble = true
+		logger.Info("Garble obfuscation enabled via -garble flag")
+	}
+	if *useUPX {
+		ctx.Config.UseUPX = true
+		logger.Info("UPX compression enabled via -upx flag")
+	}
+
 	// Execute build steps
 	steps := []struct {
 		name string
@@ -857,6 +869,14 @@ func main() {
 	}
 
 	for i, step := range steps {
+		// Skip interactive prompts when flag overrides are set
+		if step.name == "Asking user about garble" && *useGarble {
+			continue
+		}
+		if step.name == "Asking user about UPX compression" && *useUPX {
+			continue
+		}
+
 		stepNum := fmt.Sprintf("%d/%d", i+1, len(steps))
 		fmt.Printf("%s[%s]%s %s%s%s\n", B_PURPLE, stepNum, RESET, P_CYAN, step.name, RESET)
 
